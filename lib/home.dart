@@ -69,7 +69,7 @@ class _RealHomeState extends State<RealHome> {
         userId: FirebaseAuth.instance.currentUser?.uid ?? '',
       ),
     },
-    {'title': 'Map', 'subtitle': 'The map for carowinds', 'page': MapScreen()},
+    {'title': 'Map', 'subtitle': 'The map for Carowinds', 'page': MapScreen()},
     {
       'title': 'Restaurants',
       'subtitle': 'A list of the restaurants',

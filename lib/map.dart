@@ -11,6 +11,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'gzipped_tile_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 
 // Data Lists
 final List<Map<String, dynamic>> restrooms = [
@@ -231,8 +232,7 @@ class _MapScreenState extends State<MapScreen> {
         theme: theme,
         providers: TileProviders({
           'osm': GzipNetworkVectorTileProvider(
-            urlTemplate:
-                'https://api.caroflags.xyz/tiles/{z}/{x}/{y}.pbf?t=${DateTime.now().millisecondsSinceEpoch}',
+            urlTemplate: 'https://api.caroflags.xyz/tiles/{z}/{x}/{y}.pbf',
             maximumZoom: 14,
           ),
         }),
@@ -268,16 +268,17 @@ class _MapScreenState extends State<MapScreen> {
     BuildContext context,
     Map<String, dynamic> ride,
   ) async {
-    final url = Uri.parse('https://api.caroflags.xyz/ride/${ride['name']}');
-    final response = await http.get(url);
+    final url = 'https://api.caroflags.xyz/ride/${ride['name']}';
 
     if (!context.mounted) return;
 
     Map<String, dynamic> rideData;
-    if (response.statusCode == 200) {
-      rideData = json.decode(response.body);
-    } else {
-      rideData = {'name': 'Failed to load details: ${response.statusCode}'};
+    try {
+      final file = await DefaultCacheManager().getSingleFile(url);
+      final jsonString = await file.readAsString();
+      rideData = json.decode(jsonString);
+    } catch (e) {
+      rideData = {'name': 'Failed to load details: $e'};
     }
 
     Navigator.push(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:intl/intl.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 
 class ParkStatus extends StatefulWidget {
   const ParkStatus({super.key});
@@ -15,6 +16,16 @@ class _ParkStatusState extends State<ParkStatus> {
   bool isLoading = true;
   String errorMessage = '';
 
+  static final _parkStatusCache = CacheManager(
+    Config(
+      'park_status_cache',
+      stalePeriod: const Duration(days: 1),
+      maxNrOfCacheObjects: 10,
+      repo: JsonCacheInfoRepository(databaseName: 'park_status_cache'),
+      fileService: HttpFileService(),
+    ),
+  );
+
   @override
   void initState() {
     super.initState();
@@ -22,55 +33,28 @@ class _ParkStatusState extends State<ParkStatus> {
   }
 
   Future<void> _fetchParkStatus() async {
+    const url = 'https://d18car1k0ff81h.cloudfront.net/operating-hours/park/30';
     try {
-      final response = await http.get(
-        Uri.parse(
-          'https://d18car1k0ff81h.cloudfront.net/operating-hours/park/30',
-        ),
-      );
+      FileInfo? fileInfo = await _parkStatusCache.getFileFromCache(url);
 
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final List<dynamic> dates = data['dates'];
+      // If cache is valid, use it
+      if (fileInfo != null && fileInfo.validTill.isAfter(DateTime.now())) {
+        if (mounted) _processData(await fileInfo.file.readAsString());
+        return;
+      }
 
-        final now = DateTime.now();
-        final formatter = DateFormat('MM/dd/yyyy');
-        final todayStr = formatter.format(now);
-
-        final todayData = dates.firstWhere(
-          (d) => d['date'] == todayStr,
-          orElse: () => null,
-        );
-
-        if (todayData != null) {
-          if (mounted) {
-            setState(() {
-              isParkClosed = todayData['isParkClosed'];
-              isLoading = false;
-            });
-          }
-        } else {
-          // If today is not found in the list, assume closed or handle error?
-          // The API might not return today if it's past operating hours?
-          // Let's assume unavailable means we can't say for sure, but for now let's say "Unknown" or set closed.
-          // User prompt: "focus on the isParkClosed status if it is true... else if it is false"
-          // I'll assume closed if no data for today is safer.
-          if (mounted) {
-            setState(() {
-              // Fallback: if we can't find today, maybe we shouldn't show anything or show closed?
-              // I'll show error.
-              errorMessage = 'No data for today';
-              isLoading = false;
-            });
-          }
+      // Try fetching new data
+      try {
+        final file = await _parkStatusCache.getSingleFile(url);
+        if (mounted) _processData(await file.readAsString());
+        return;
+      } catch (e) {
+        // If fetch fails but we have (expired) cache, use it as fallback
+        if (fileInfo != null) {
+          if (mounted) _processData(await fileInfo.file.readAsString());
+          return;
         }
-      } else {
-        if (mounted) {
-          setState(() {
-            errorMessage = 'Failed to load status';
-            isLoading = false;
-          });
-        }
+        throw e; // Rethrow if no cache to fallback to
       }
     } catch (e) {
       if (mounted) {
@@ -79,6 +63,39 @@ class _ParkStatusState extends State<ParkStatus> {
           isLoading = false;
         });
       }
+    }
+  }
+
+  void _processData(String jsonString) {
+    try {
+      final data = json.decode(jsonString);
+      final List<dynamic> dates = data['dates'];
+
+      final now = DateTime.now();
+      final formatter = DateFormat('MM/dd/yyyy');
+      final todayStr = formatter.format(now);
+
+      final todayData = dates.firstWhere(
+        (d) => d['date'] == todayStr,
+        orElse: () => null,
+      );
+
+      if (todayData != null) {
+        setState(() {
+          isParkClosed = todayData['isParkClosed'];
+          isLoading = false;
+        });
+      } else {
+        setState(() {
+          errorMessage = 'No data for today';
+          isLoading = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        errorMessage = 'Failed to parse status';
+        isLoading = false;
+      });
     }
   }
 

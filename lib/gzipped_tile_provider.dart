@@ -1,6 +1,8 @@
 import 'dart:typed_data';
 
-import 'package:http/http.dart';
+import 'package:http/http.dart'
+    as http; // Keeping http for type reference if needed, though Client usage removed
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 
 import 'package:vector_map_tiles/vector_map_tiles.dart';
 import 'package:archive/archive.dart';
@@ -10,6 +12,16 @@ class GzipNetworkVectorTileProvider extends VectorTileProvider {
   final String urlTemplate;
   final Map<String, String>? httpHeaders;
   final _UrlProvider _urlProvider;
+
+  static final _cacheManager = CacheManager(
+    Config(
+      'map_tiles_cache',
+      stalePeriod: const Duration(days: 120),
+      maxNrOfCacheObjects: 10000,
+      repo: JsonCacheInfoRepository(databaseName: 'map_tiles_cache'),
+      fileService: HttpFileService(),
+    ),
+  );
 
   @override
   final int maximumZoom;
@@ -34,52 +46,46 @@ class GzipNetworkVectorTileProvider extends VectorTileProvider {
   @override
   Future<Uint8List> provide(TileIdentity tile) async {
     _checkTile(tile);
-    final uri = Uri.parse(_urlProvider.url(tile));
-    final client = Client();
+    final url = _urlProvider.url(tile);
+    final uri = Uri.parse(url);
+
     try {
       // ignore: avoid_print
-      print('Fetching tile: $uri');
-      final response = await client.get(uri, headers: httpHeaders);
-      // ignore: avoid_print
-      print(
-        'Response for $tile: ${response.statusCode}, length: ${response.bodyBytes.length}',
-      );
-      if (response.statusCode == 200) {
-        final bytes = response.bodyBytes;
-        if (bytes.length > 4) {
-          final prefix = bytes
-              .sublist(0, 4)
-              .map((b) => b.toRadixString(16).padLeft(2, '0'))
-              .join(' ');
-          // ignore: avoid_print
-          print('Bytes prefix: $prefix');
-        }
+      print('Fetching tile from cache/network: $uri');
 
-        final decoded = _decode(bytes);
-        if (decoded.isEmpty) {
-          // ignore: avoid_print
-          print('WARNING: Decoded tile is empty!');
-          return Uint8List(0);
-        }
+      final file = await _cacheManager.getSingleFile(url, headers: httpHeaders);
+      final bytes = await file.readAsBytes();
 
-        try {
-          // Attempt to parse the tile to ensure it's valid protobuf.
-          // This prevents vector_map_tiles from crashing later.
-          VectorTile.fromBytes(bytes: decoded);
-        } catch (e) {
-          // ignore: avoid_print
-          print('WARNING: Invalid tile data (wire type or protobuf error): $e');
-          // Return empty tile to suppress crash
-          return Uint8List(0);
-        }
-
-        return decoded;
+      if (bytes.length > 4) {
+        final prefix = bytes
+            .sublist(0, 4)
+            .map((b) => b.toRadixString(16).padLeft(2, '0'))
+            .join(' ');
+        // ignore: avoid_print
+        print('Bytes prefix: $prefix');
       }
-      throw Exception(
-        'Cannot retrieve tile: HTTP ${response.statusCode}: $uri ${response.body}',
-      );
+
+      final decoded = _decode(bytes);
+      if (decoded.isEmpty) {
+        // ignore: avoid_print
+        print('WARNING: Decoded tile is empty!');
+        return Uint8List(0);
+      }
+
+      try {
+        // Attempt to parse the tile to ensure it's valid protobuf.
+        // This prevents vector_map_tiles from crashing later.
+        VectorTile.fromBytes(bytes: decoded);
+      } catch (e) {
+        // ignore: avoid_print
+        print('WARNING: Invalid tile data (wire type or protobuf error): $e');
+        // Return empty tile to suppress crash
+        return Uint8List(0);
+      }
+
+      return decoded;
     } catch (e) {
-      // Check for cancellation exception string since we can't easily import the type
+      // Check for cancellation exception string
       if (e.toString().contains('Cancelled') ||
           e.toString().contains('CancellationException')) {
         // ignore: avoid_print
@@ -89,8 +95,6 @@ class GzipNetworkVectorTileProvider extends VectorTileProvider {
       // ignore: avoid_print
       print('Error fetching tile $tile: $e');
       rethrow;
-    } finally {
-      client.close();
     }
   }
 

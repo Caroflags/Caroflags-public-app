@@ -10,6 +10,7 @@ import 'randomtext.dart';
 import 'testernotice.dart';
 import 'testpage.dart';
 import 'park_status.dart';
+import 'services/ota_service.dart';
 
 Future<String?> getUsername() async {
   User? user = FirebaseAuth.instance.currentUser;
@@ -49,6 +50,14 @@ class RealHome extends StatefulWidget {
 }
 
 class _RealHomeState extends State<RealHome> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      OtaService.checkForUpdates(context);
+    });
+  }
+
   int _selectedIndex = 0;
   String _searchQuery = '';
 

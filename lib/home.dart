@@ -76,7 +76,7 @@ class _RealHomeState extends State<RealHome> {
       'page': RestaurantsPage(),
     },
     {
-      'title': 'Test Page',
+      'title': 'Testing',
       'subtitle': 'A page for testing features',
       'page': const TestPage(),
     },

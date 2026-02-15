@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:intl/intl.dart';
+
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 
 class ParkStatus extends StatefulWidget {
@@ -18,10 +18,10 @@ class _ParkStatusState extends State<ParkStatus> {
 
   static final _parkStatusCache = CacheManager(
     Config(
-      'park_status_cache',
-      stalePeriod: const Duration(days: 1),
+      'park_status_live_cache',
+      stalePeriod: const Duration(minutes: 5),
       maxNrOfCacheObjects: 10,
-      repo: JsonCacheInfoRepository(databaseName: 'park_status_cache'),
+      repo: JsonCacheInfoRepository(databaseName: 'park_status_live_cache'),
       fileService: HttpFileService(),
     ),
   );
@@ -33,7 +33,8 @@ class _ParkStatusState extends State<ParkStatus> {
   }
 
   Future<void> _fetchParkStatus() async {
-    const url = 'https://d18car1k0ff81h.cloudfront.net/operating-hours/park/30';
+    const url =
+        'https://api.themeparks.wiki/v1/entity/24cdcaa8-0500-4340-9725-992865eb18d6/live';
     try {
       FileInfo? fileInfo = await _parkStatusCache.getFileFromCache(url);
 
@@ -54,7 +55,7 @@ class _ParkStatusState extends State<ParkStatus> {
           if (mounted) _processData(await fileInfo.file.readAsString());
           return;
         }
-        throw e; // Rethrow if no cache to fallback to
+        rethrow; // Rethrow if no cache to fallback to
       }
     } catch (e) {
       if (mounted) {
@@ -69,33 +70,28 @@ class _ParkStatusState extends State<ParkStatus> {
   void _processData(String jsonString) {
     try {
       final data = json.decode(jsonString);
-      final List<dynamic> dates = data['dates'];
+      final List<dynamic> liveData = data['liveData'] ?? [];
 
-      final now = DateTime.now();
-      final formatter = DateFormat('MM/dd/yyyy');
-      final todayStr = formatter.format(now);
+      // Check if any ride/show is operating or temporarily down (implying park is open)
+      // If any attraction is OPERATING, OPEN, or DOWN, we consider the park OPEN.
+      final isParkOpen = liveData.any((entity) {
+        final status = entity['status'];
+        return status == 'OPERATING' || status == 'OPEN' || status == 'DOWN';
+      });
 
-      final todayData = dates.firstWhere(
-        (d) => d['date'] == todayStr,
-        orElse: () => null,
-      );
-
-      if (todayData != null) {
+      if (mounted) {
         setState(() {
-          isParkClosed = todayData['isParkClosed'];
-          isLoading = false;
-        });
-      } else {
-        setState(() {
-          errorMessage = 'No data for today';
+          isParkClosed = !isParkOpen;
           isLoading = false;
         });
       }
     } catch (e) {
-      setState(() {
-        errorMessage = 'Failed to parse status';
-        isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          errorMessage = 'Failed to parse status';
+          isLoading = false;
+        });
+      }
     }
   }
 
@@ -123,8 +119,8 @@ class _ParkStatusState extends State<ParkStatus> {
 
     final isClosed = isParkClosed!;
     final text = isClosed
-        ? "Park closed today, maybe tommrow?"
-        : "The park is open today!";
+        ? "Park closed right now, maybe later?"
+        : "The park is open right now!";
     final color = isClosed ? Colors.red : Colors.green;
 
     return Container(

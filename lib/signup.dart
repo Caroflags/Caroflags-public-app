@@ -4,7 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'login.dart';
 // test commit thingy
 
-void main() { 
+void main() {
   runApp(const MyApp());
 }
 
@@ -43,105 +43,145 @@ class _SignupPageState extends State<SignupPage> {
 
     try {
       if (email.isEmpty || password.isEmpty || username.isEmpty) {
-              showDialog(context: context, builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Wha- Huh?'),
-          content: const Text('How am i going to make an account without an email, password, and username?'),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                
-              },
-              child: const Text('Ok'),
-            ),
-          ],
+        showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: const Text('Wha- Huh?'),
+              content: const Text(
+                'How am i going to make an account without an email, password, and username?',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                  child: const Text('Ok'),
+                ),
+              ],
+            );
+          },
         );
-      });
-      return;
+        return;
       }
 
       // Check if the username is not funny
       if (username.toLowerCase() == 'dixie normus') {
-        showDialog(context: context, builder: (BuildContext context) {
-          return AlertDialog(
-            title: const Text('Haha'),
-            content: const Text('You\'re funny, REALLY funny. Get rid of that username and try again.'),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                },
-                child: const Text('Ok'),
+        showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: const Text('Haha'),
+              content: const Text(
+                'You\'re funny, REALLY funny. Get rid of that username and try again.',
               ),
-            ],
-          );
-        });
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                  child: const Text('Ok'),
+                ),
+              ],
+            );
+          },
+        );
         return;
       }
       if (username.toLowerCase() == 'bogos binted') {
-        showDialog(context: context, builder: (BuildContext context) {
-          return AlertDialog(
-            title: const Text('Haha'),
-            content: const Text('Hey just wondering if you got your photos printed?'),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                },
-                child: const Text('Ok'),
+        showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: const Text('Haha'),
+              content: const Text(
+                'Hey just wondering if you got your photos printed?',
               ),
-            ],
-          );
-        });
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                  child: const Text('Ok'),
+                ),
+              ],
+            );
+          },
+        );
         return;
       }
 
       // Attempt to create a new user with Firebase
       try {
-        final userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
-          email: email,
-          password: password,
-        );
+        final userCredential = await FirebaseAuth.instance
+            .createUserWithEmailAndPassword(email: email, password: password);
 
         await userCredential.user?.sendEmailVerification();
 
-        await FirebaseFirestore.instance.collection('users').doc(userCredential.user?.uid).set({
-          'username': username,
-          'email': email,
-          'createdAt': FieldValue.serverTimestamp(),
-        });
-
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(userCredential.user?.uid)
+            .set({
+              'username': username,
+              'email': email,
+              'createdAt': FieldValue.serverTimestamp(),
+            });
 
         if (!context.mounted) return;
-        showDialog(context: context, builder: (BuildContext context) {
-          return AlertDialog(
-            title: const Text('Success!'),
-            content: Text('Thanks For making an account, $username! Now, You need to verify your email. There should be an email in your inbox. If you don\'t see it, check your spam folder.'),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  Navigator.pushReplacement(context, MaterialPageRoute(
-                    builder: (context) => const LoginPage(),
-                  ));
-                },
-                child: const Text('Ok'),
+        showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: const Text('The Caroflags iniation is complete'),
+              content: Text(
+                'Thanks For making an account, $username! Now, You need to verify your email. There should be an email in your inbox. If you don\'t see it, check your spam folder. If the email is in spam, please report it as not spam in your inbox.',
               ),
-            ],
-          );
-        });
-
-
-
-
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const LoginPage(),
+                      ),
+                    );
+                  },
+                  child: const Text('Ok'),
+                ),
+              ],
+            );
+          },
+        );
       } catch (error) {
         // Handle errors during Firebase Authentication
         if (!context.mounted) return;
-        showDialog(context: context, builder: (BuildContext context) {
+        showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: const Text('Error'),
+              content: Text('Failed to create account: $error'),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                  child: const Text('Ok'),
+                ),
+              ],
+            );
+          },
+        );
+      }
+    } catch (e) {
+      if (!context.mounted) return;
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
           return AlertDialog(
-            title: const Text('Error'),
-            content: Text('Failed to create account: $error'),
+            title: const Text('uh'),
+            content: Text('An error occurred: $e'),
             actions: [
               TextButton(
                 onPressed: () {
@@ -151,42 +191,15 @@ class _SignupPageState extends State<SignupPage> {
               ),
             ],
           );
-        });
-      }
-
-
-
-
-
+        },
+      );
     }
-    catch (e) {
-      if (!context.mounted) return;
-      showDialog(context: context, builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('uh'),
-          content: Text('An error occurred: $e'),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: const Text('Ok'),
-            ),
-          ],
-        );
-      });
-    }
-    
-
-
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Signup'),
-      ),
+      appBar: AppBar(title: const Text('Signup')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -234,16 +247,11 @@ class _SignupPageState extends State<SignupPage> {
                 labelText: 'Confirm Password',
                 border: OutlineInputBorder(),
               ),
-              obscureText: true
+              obscureText: true,
             ),
-
-
 
             const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _signup,
-              child: const Text('Signup'),
-            ),
+            ElevatedButton(onPressed: _signup, child: const Text('Signup')),
 
             Container(
               margin: const EdgeInsets.only(top: 40.0),
@@ -251,26 +259,23 @@ class _SignupPageState extends State<SignupPage> {
                 children: [
                   const Text(
                     'Cultured?',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.grey,
-                    ),
+                    style: TextStyle(fontSize: 16, color: Colors.grey),
                   ),
                   const SizedBox(height: 8),
                   ElevatedButton(
                     onPressed: () {
-                    Navigator.push(context, MaterialPageRoute(
-                      builder: (context) => const LoginPage(),
-                    ));
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const LoginPage(),
+                        ),
+                      );
                     },
                     child: const Text('Login'),
                   ),
                 ],
               ),
             ),
-
-
-
           ],
         ),
       ),

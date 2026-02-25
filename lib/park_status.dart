@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-
+import 'package:intl/intl.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 
 class ParkStatus extends StatefulWidget {
@@ -12,16 +12,17 @@ class ParkStatus extends StatefulWidget {
 }
 
 class _ParkStatusState extends State<ParkStatus> {
-  bool? isParkClosed;
+  String statusText = '';
+  bool isOpen = false;
   bool isLoading = true;
   String errorMessage = '';
 
   static final _parkStatusCache = CacheManager(
     Config(
-      'park_status_live_cache',
-      stalePeriod: const Duration(minutes: 5),
+      'park_status_schedule_cache',
+      stalePeriod: const Duration(hours: 12),
       maxNrOfCacheObjects: 10,
-      repo: JsonCacheInfoRepository(databaseName: 'park_status_live_cache'),
+      repo: JsonCacheInfoRepository(databaseName: 'park_status_schedule_cache'),
       fileService: HttpFileService(),
     ),
   );
@@ -34,7 +35,7 @@ class _ParkStatusState extends State<ParkStatus> {
 
   Future<void> _fetchParkStatus() async {
     const url =
-        'https://api.themeparks.wiki/v1/entity/24cdcaa8-0500-4340-9725-992865eb18d6/live';
+        'https://api.themeparks.wiki/v1/entity/24cdcaa8-0500-4340-9725-992865eb18d6/schedule';
     try {
       FileInfo? fileInfo = await _parkStatusCache.getFileFromCache(url);
 
@@ -55,7 +56,7 @@ class _ParkStatusState extends State<ParkStatus> {
           if (mounted) _processData(await fileInfo.file.readAsString());
           return;
         }
-        rethrow; // Rethrow if no cache to fallback to
+        rethrow;
       }
     } catch (e) {
       if (mounted) {
@@ -70,18 +71,55 @@ class _ParkStatusState extends State<ParkStatus> {
   void _processData(String jsonString) {
     try {
       final data = json.decode(jsonString);
-      final List<dynamic> liveData = data['liveData'] ?? [];
+      final List<dynamic> schedule = data['schedule'] ?? [];
 
-      // Check if any ride/show is operating or temporarily down (implying park is open)
-      // If any attraction is OPERATING, OPEN, or DOWN, we consider the park OPEN.
-      final isParkOpen = liveData.any((entity) {
-        final status = entity['status'];
-        return status == 'OPERATING' || status == 'OPEN' || status == 'DOWN';
-      });
+      final now = DateTime.now();
+      final dateFormat = DateFormat('yyyy-MM-dd');
+      final todayStr = dateFormat.format(now);
 
-      if (mounted) {
+      final todaySchedule = schedule.firstWhere(
+        (s) => s['date'] == todayStr,
+        orElse: () => null,
+      );
+
+      if (todaySchedule != null && todaySchedule['type'] == 'OPERATING') {
+        final openTimeStr = todaySchedule['openingTime'];
+        final closeTimeStr = todaySchedule['closingTime'];
+
+        if (openTimeStr != null && closeTimeStr != null) {
+          final openTime = DateTime.parse(openTimeStr).toLocal();
+          final closeTime = DateTime.parse(closeTimeStr).toLocal();
+
+          if (now.isAfter(closeTime)) {
+            setState(() {
+              isOpen = false;
+              statusText = "Carowinds is closed"; // Past closing time
+              isLoading = false;
+            });
+          } else {
+            // It's today, not past closing. User requested "say it's open" if date is there.
+            // We'll show the hours.
+            final timeFormat = DateFormat('h:mm a');
+            setState(() {
+              isOpen = true;
+              statusText =
+                  "Open ${timeFormat.format(openTime)} - ${timeFormat.format(closeTime)}";
+              isLoading = false;
+            });
+          }
+        } else {
+          // Fallback if times are missing but it says operating
+          setState(() {
+            isOpen = true;
+            statusText = "Carowinds is open today";
+            isLoading = false;
+          });
+        }
+      } else {
         setState(() {
-          isParkClosed = !isParkOpen;
+          isOpen = false;
+          statusText =
+              "Carowinds is closed"; // Not in schedule or not operating
           isLoading = false;
         });
       }
@@ -110,18 +148,11 @@ class _ParkStatusState extends State<ParkStatus> {
       );
     }
 
-    if (errorMessage.isNotEmpty || isParkClosed == null) {
-      // Optionally hide if error? Or show small error text.
-      // User didn't specify error state, so I'll render nothing or a small error.
+    if (errorMessage.isNotEmpty) {
       return const SizedBox.shrink();
-      // Or useful for debug: Text(errorMessage, style: TextStyle(color: Colors.red, fontSize: 10));
     }
 
-    final isClosed = isParkClosed!;
-    final text = isClosed
-        ? "Park closed right now, maybe later?"
-        : "The park is open right now!";
-    final color = isClosed ? Colors.red : Colors.green;
+    final color = isOpen ? Colors.green : Colors.red;
 
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 8.0),
@@ -150,7 +181,7 @@ class _ParkStatusState extends State<ParkStatus> {
           ),
           const SizedBox(width: 12),
           Text(
-            text,
+            statusText,
             style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
           ),
         ],

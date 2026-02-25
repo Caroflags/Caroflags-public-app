@@ -92,7 +92,7 @@ class _LoginPageState extends State<LoginPage> {
             return AlertDialog(
               title: const Text('Is your email verified?'),
               content: const Text(
-                'Please verify your email before logging in. If you can\'t find the verification email, check your spam folder.',
+                'Please verify your email before logging in. If you can\'t find the verification email, check your spam folder. If you couldn\'t find it, please request a new verification with the resend button below. If the email is in spam, please report it as not spam in your inbox.',
               ),
               actions: [
                 TextButton(
@@ -100,6 +100,13 @@ class _LoginPageState extends State<LoginPage> {
                     Navigator.of(context).pop();
                   },
                   child: const Text('Ok'),
+                ),
+                TextButton(
+                  onPressed: () {
+                    FirebaseAuth.instance.currentUser?.sendEmailVerification();
+                    Navigator.of(context).pop();
+                  },
+                  child: const Text('Resend Verification Email'),
                 ),
               ],
             );
@@ -176,6 +183,68 @@ class _LoginPageState extends State<LoginPage> {
             const SizedBox(height: 16),
             ElevatedButton(onPressed: _login, child: const Text('Login')),
 
+            Container(
+              margin: const EdgeInsets.only(top: 16.0),
+              child: Column(
+                children: [
+                  const Text(
+                    'Stupid?',
+                    style: TextStyle(fontSize: 16, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 8),
+                  ElevatedButton(
+                    onPressed: () {
+                      if (_emailController.text.isNotEmpty) {
+                        FirebaseAuth.instance.sendPasswordResetEmail(
+                          email: _emailController.text,
+                        );
+                        showDialog(
+                          context: context,
+                          builder: (BuildContext context) {
+                            return AlertDialog(
+                              title: const Text('Check Your Email!'),
+                              content: const Text(
+                                'Please check your email for a password reset link. Remember to check your spam folder, and don\'t forget your password again.',
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () {
+                                    Navigator.of(context).pop();
+                                  },
+                                  child: const Text('Ok'),
+                                ),
+                              ],
+                            );
+                          },
+                        );
+                      } else {
+                        showDialog(
+                          context: context,
+                          builder: (BuildContext context) {
+                            return AlertDialog(
+                              title: const Text('I Need Your Email :('),
+                              content: const Text(
+                                'Please enter your email address into the input field first.',
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () {
+                                    Navigator.of(context).pop();
+                                  },
+                                  child: const Text('Ok'),
+                                ),
+                              ],
+                            );
+                          },
+                        );
+                      }
+                    },
+                    child: const Text('Reset Password'),
+                  ),
+                ],
+              ),
+            ),
+
             // uncultured container
             Container(
               margin: const EdgeInsets.only(top: 40.0),
@@ -205,11 +274,6 @@ class _LoginPageState extends State<LoginPage> {
               margin: const EdgeInsets.only(top: 40.0),
               child: Column(
                 children: [
-                  const Text(
-                    'Legal Stuff?',
-                    style: TextStyle(fontSize: 16, color: Colors.grey),
-                  ),
-                  const SizedBox(height: 8),
                   ElevatedButton(
                     onPressed: () {
                       Navigator.push(

@@ -105,6 +105,27 @@ class _LoginPageState extends State<LoginPage> {
                   onPressed: () {
                     FirebaseAuth.instance.currentUser?.sendEmailVerification();
                     Navigator.of(context).pop();
+
+                    if (!context.mounted) return;
+                    showDialog(
+                      context: context,
+                      builder: (BuildContext context) {
+                        return AlertDialog(
+                          title: const Text('Verification Email Sent'),
+                          content: const Text(
+                            'A verification email has been sent to your email address. Please check your inbox and spam folder for the email.',
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () {
+                                Navigator.of(context).pop();
+                              },
+                              child: const Text('Ok'),
+                            ),
+                          ],
+                        );
+                      },
+                    );
                   },
                   child: const Text('Resend Verification Email'),
                 ),

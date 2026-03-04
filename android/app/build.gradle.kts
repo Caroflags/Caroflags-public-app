@@ -1,5 +1,8 @@
 plugins {
     id("com.android.application")
+    // START: FlutterFire Configuration
+    id("com.google.gms.google-services")
+    // END: FlutterFire Configuration
     id("kotlin-android")
     id("dev.flutter.flutter-gradle-plugin")
 }
@@ -15,7 +18,7 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-    namespace = "com.example.caroflags" // <--- VERIFY THIS MATCHES YOUR CODE
+    namespace = "com.caroflags.caroflags" // <--- VERIFY THIS MATCHES YOUR CODE
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -33,7 +36,7 @@ android {
         getByName("main").java.srcDirs("src/main/kotlin")
     }
     defaultConfig {
-        applicationId = "com.example.caroflags" // <--- VERIFY THIS MATCHES YOUR CODE
+        applicationId = "com.caroflags.caroflags" // <--- VERIFY THIS MATCHES YOUR CODE
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode

@@ -1,4 +1,4 @@
-package com.example.caroflags
+package com.caroflags.caroflags
 
 import io.flutter.embedding.android.FlutterActivity
 

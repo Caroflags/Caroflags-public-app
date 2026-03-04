@@ -60,13 +60,11 @@ class DefaultFirebaseOptions {
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-      apiKey: "AIzaSyC3ZQ8d9m66WpQmuCOj8N33P0FWpaGsz8s",
-      authDomain: "betterfy-5bqgih.firebaseapp.com",
-      projectId: "betterfy-5bqgih",
-      storageBucket: "betterfy-5bqgih.firebasestorage.app",
-      messagingSenderId: "701041507507",
-      appId: "1:701041507507:web:21a83467c7553cab3944c6",
-      measurementId: "G-25H20022JH"
+    apiKey: 'AIzaSyB0f6GLeQnbVhKSB8UxOzimnL-txOKabRs',
+    appId: '1:701041507507:android:04687369d4a3e5cf3944c6',
+    messagingSenderId: '701041507507',
+    projectId: 'betterfy-5bqgih',
+    storageBucket: 'betterfy-5bqgih.firebasestorage.app',
   );
 
 }

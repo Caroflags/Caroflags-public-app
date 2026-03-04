@@ -1,7 +1,7 @@
-
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'randomtext.dart';
 import 'scanbarcode.dart';
 
@@ -48,15 +48,28 @@ class _PassesScreenState extends State<PassesScreen> {
                   IconButton(
                     icon: const Icon(Icons.qr_code_scanner),
                     onPressed: () async {
-                      final result = await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              const BarcodeScannerScreen(returnResult: true),
-                        ),
-                      );
-                      if (result != null && result is String) {
-                        idController.text = result;
+                      var status = await Permission.camera.request();
+                      if (status.isGranted) {
+                        if (!context.mounted) return;
+                        final result = await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                const BarcodeScannerScreen(returnResult: true),
+                          ),
+                        );
+                        if (result != null && result is String) {
+                          idController.text = result;
+                        }
+                      } else {
+                        if (!context.mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Camera permission is required to scan passports.',
+                            ),
+                          ),
+                        );
                       }
                     },
                   ),

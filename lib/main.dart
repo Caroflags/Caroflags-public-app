@@ -4,7 +4,6 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'login.dart';
 import 'notifications.dart'; // replaced awesome_notifications
-import 'package:geolocator/geolocator.dart';
 import 'firebase_options.dart';
 
 void main() async {
@@ -23,16 +22,8 @@ void main() async {
   // 3. Initialize Notifications
   await NotificationService.initializeNotifications();
 
-  LocationPermission permission = await Geolocator.checkPermission();
-  if (permission == LocationPermission.denied) {
-    permission = await Geolocator.requestPermission();
-    if (permission == LocationPermission.denied) {
-      debugPrint("Location permissions are denied");
-    }
-  }
-
   final user = FirebaseAuth.instance.currentUser;
-  debugPrint('Current user: ${user?.uid}' ?? 'No user logged in');
+  debugPrint(user != null ? 'Current user: ${user.uid}' : 'No user logged in');
 
   runApp(const MyApp());
 }

@@ -181,8 +181,37 @@ class _MapScreenState extends State<MapScreen> {
   @override
   void initState() {
     super.initState();
+    _checkLocationPermission();
     _loadFilters();
     _loadStyle();
+  }
+
+  Future<void> _checkLocationPermission() async {
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Location is turned off, so you wont be able to see where you are.',
+              ),
+            ),
+          );
+        }
+      }
+    } else if (permission == LocationPermission.deniedForever) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Location is permanently turned off, so you wont be able to see where you are.',
+            ),
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _loadFilters() async {

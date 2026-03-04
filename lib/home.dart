@@ -11,10 +11,11 @@ import 'testernotice.dart';
 import 'testpage.dart';
 import 'park_status.dart';
 import 'services/ota_service.dart';
+import 'settings.dart';
 
-Future<String?> getUsername() async {
+Future<Map<String, String?>> getUserData() async {
   User? user = FirebaseAuth.instance.currentUser;
-  if (user == null) return null;
+  if (user == null) return {'username': null, 'email': null};
 
   DocumentSnapshot userDoc = await FirebaseFirestore.instance
       .collection('users')
@@ -22,24 +23,12 @@ Future<String?> getUsername() async {
       .get();
 
   if (userDoc.exists) {
-    return userDoc.get('username') as String?;
+    return {
+      'username': userDoc.get('username') as String?,
+      'email': userDoc.get('email') as String?,
+    };
   }
-  return null;
-}
-
-Future<String?> getEmail() async {
-  User? user = FirebaseAuth.instance.currentUser;
-  if (user == null) return null;
-
-  DocumentSnapshot userDoc = await FirebaseFirestore.instance
-      .collection('users')
-      .doc(user.uid)
-      .get();
-
-  if (userDoc.exists) {
-    return userDoc.get('email') as String?;
-  }
-  return null;
+  return {'username': null, 'email': null};
 }
 
 class RealHome extends StatefulWidget {
@@ -50,9 +39,12 @@ class RealHome extends StatefulWidget {
 }
 
 class _RealHomeState extends State<RealHome> {
+  Future<http.Response>? _apiHealthFuture;
+
   @override
   void initState() {
     super.initState();
+    _apiHealthFuture = http.get(Uri.parse('https://api.caroflags.xyz/health'));
     WidgetsBinding.instance.addPostFrameCallback((_) {
       OtaService.checkForUpdates(context);
     });
@@ -104,9 +96,9 @@ class _RealHomeState extends State<RealHome> {
           IconButton(
             icon: const Icon(Icons.settings),
             onPressed: () {
-              ScaffoldMessenger.of(
+              Navigator.of(
                 context,
-              ).showSnackBar(const SnackBar(content: Text('Coming Soon!')));
+              ).push(MaterialPageRoute(builder: (_) => const SettingsPage()));
             },
           ),
         ],
@@ -115,8 +107,8 @@ class _RealHomeState extends State<RealHome> {
         child: SafeArea(
           child: Column(
             children: [
-              FutureBuilder<List<String?>>(
-                future: Future.wait([getUsername(), getEmail()]),
+              FutureBuilder<Map<String, String?>>(
+                future: getUserData(),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState != ConnectionState.done) {
                     return const ListTile(
@@ -132,8 +124,9 @@ class _RealHomeState extends State<RealHome> {
                       subtitle: Text(''),
                     );
                   }
-                  final username = snapshot.data?[0] ?? 'Who are you?';
-                  final email = snapshot.data?[1] ?? 'Jimbob@googlemail.com';
+                  final username = snapshot.data?['username'] ?? 'Who are you?';
+                  final email =
+                      snapshot.data?['email'] ?? 'Jimbob@googlemail.com';
                   return ListTile(
                     leading: const CircleAvatar(child: Icon(Icons.person)),
                     title: Text(username),
@@ -162,10 +155,21 @@ class _RealHomeState extends State<RealHome> {
               ),
               const Spacer(),
               ListTile(
+                leading: const Icon(Icons.settings),
+                title: const Text('Settings'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const SettingsPage()),
+                  );
+                },
+              ),
+              ListTile(
                 leading: const Icon(Icons.logout),
                 title: const Text('Logout ):'),
                 onTap: () async {
                   await FirebaseAuth.instance.signOut();
+                  if (!context.mounted) return;
                   Navigator.of(context).pushReplacement(
                     MaterialPageRoute(builder: (context) => const LoginPage()),
                   );
@@ -181,9 +185,7 @@ class _RealHomeState extends State<RealHome> {
             ? ListView(
                 children: [
                   FutureBuilder<http.Response>(
-                    future: http.get(
-                      Uri.parse('https://api.caroflags.xyz/health'),
-                    ),
+                    future: _apiHealthFuture,
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
                         return const Text("Checking if the api isn't dead...");

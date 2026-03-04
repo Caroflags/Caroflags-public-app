@@ -57,10 +57,20 @@ dependencies:
   flutter_cache_manager: ^3.4.1
   open_filex: ^4.5.0
   path_provider: ^2.1.2
+  permission_handler: ^12.0.1
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  flutter_launcher_icons: ^0.13.1
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "images/logo.png"
+  min_sdk_android: 21
+  adaptive_icon_background: "#56A0D3"
+  adaptive_icon_foreground: "images/logo_trans.png"
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is

@@ -19,13 +19,16 @@ class _TestPageState extends State<TestPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Testing pages'),
-      ),
+      appBar: AppBar(title: const Text('Testing pages')),
       body: Column(
-
         children: [
-          const Text('This is a test page. This does not have any real functionality and may get removed later'),
+          const Text(
+            'This is a test page. This does not have any real functionality and may get removed later',
+          ),
+          const Text(
+            'If you got here by accident, you can safely back out of this page and carry on, this is only for testing features.',
+          ),
+          const SizedBox(height: 20),
           ElevatedButton(
             onPressed: () {
               // Request notification permissions
@@ -43,10 +46,9 @@ class _TestPageState extends State<TestPage> {
                   title: 'Caroflags',
                   body: 'I think it works',
                 ),
-                
               );
             },
-            
+
             child: const Text('Show Notification'),
           ),
           const SizedBox(height: 20),
@@ -54,24 +56,31 @@ class _TestPageState extends State<TestPage> {
 
           ElevatedButton(
             onPressed: () async {
-              Position position = await Geolocator.getCurrentPosition(locationSettings: LocationSettings(
-                accuracy: LocationAccuracy.high,
-                distanceFilter: 100,
-              ));
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lat: ${position.latitude}, Long: ${position.longitude}')));
+              Position position = await Geolocator.getCurrentPosition(
+                locationSettings: LocationSettings(
+                  accuracy: LocationAccuracy.high,
+                  distanceFilter: 100,
+                ),
+              );
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    'Lat: ${position.latitude}, Long: ${position.longitude}',
+                  ),
+                ),
+              );
             },
-              child: Text("Get Location"),
-            ),
+            child: Text("Get Location"),
+          ),
 
           ElevatedButton(
             onPressed: () async {
-              String? idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
+              String? idToken = await FirebaseAuth.instance.currentUser
+                  ?.getIdToken();
               var url = Uri.parse('https://api.caroflags.xyz/reviews');
               var response = await http.get(
                 url,
-                headers: {
-                  'Authorization': 'Bearer $idToken',
-                },
+                headers: {'Authorization': 'Bearer $idToken'},
               );
 
               // Ensure the widget is still mounted before using context or calling setState
@@ -85,53 +94,61 @@ class _TestPageState extends State<TestPage> {
                 });
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Request failed with status: ${response.statusCode}.')),
+                  SnackBar(
+                    content: Text(
+                      'Request failed with status: ${response.statusCode}.',
+                    ),
+                  ),
                 );
               }
             },
-              child: Text("test api"),
-              ),
-              Expanded(
-              child: ListView.builder(
-                itemCount: reviews.length,
-                itemBuilder: (context, index) {
+            child: Text("test api"),
+          ),
+          Expanded(
+            child: ListView.builder(
+              itemCount: reviews.length,
+              itemBuilder: (context, index) {
                 var review = reviews[index];
                 return Card(
-                  margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                  margin: const EdgeInsets.symmetric(
+                    vertical: 8,
+                    horizontal: 16,
+                  ),
                   child: ListTile(
-                  title: Text('Attraction: ${review['attraction']} - ${review['rating'] != null ? 'Rating: ${review['rating']}' : 'No rating available'}'),
-                  subtitle: Text('Content: ${review['content'] ?? 'No content available'}'),
+                    title: Text(
+                      'Attraction: ${review['attraction']} - ${review['rating'] != null ? 'Rating: ${review['rating']}' : 'No rating available'}',
+                    ),
+                    subtitle: Text(
+                      'Content: ${review['content'] ?? 'No content available'}',
+                    ),
                   ),
                 );
-                },
-              ),
-              ),
-
-            ElevatedButton(
-              onPressed: () {
-                showDialog(
-                  context: context,
-                  builder: (context) {
-                    return AlertDialog(
-                      title: const Text('Test Dialog'),
-                      content: const Text('This is a test dialog.'),
-                      actions: [
-                        TextButton(
-                          onPressed: () {
-                            Navigator.of(context).pop();
-                          },
-                          child: const Text('Close'),
-                        ),
-                      ],
-                    );
-                  },
-                );
               },
-              child: const Text('Test Api calls'),
             ),
+          ),
 
-
-
+          ElevatedButton(
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (context) {
+                  return AlertDialog(
+                    title: const Text('Test Dialog'),
+                    content: const Text('This is a test dialog.'),
+                    actions: [
+                      TextButton(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                        },
+                        child: const Text('Close'),
+                      ),
+                    ],
+                  );
+                },
+              );
+            },
+            child: const Text('Test Api calls'),
+          ),
         ],
       ),
     );

@@ -48,6 +48,7 @@ class _RealHomeState extends State<RealHome> {
 
   int _selectedIndex = 0;
   String _searchQuery = '';
+  int _homeTapCount = 0; // Tracks consecutive taps on the drawer's Home button
 
   final List<Map<String, dynamic>> _items = [
     {
@@ -62,11 +63,6 @@ class _RealHomeState extends State<RealHome> {
       'title': 'Restaurants',
       'subtitle': 'A list of the restaurants',
       'page': RestaurantsPage(),
-    },
-    {
-      'title': 'Testing',
-      'subtitle': 'A page for testing features',
-      'page': const TestPage(),
     },
   ];
   void _onNavTap(int index) {
@@ -137,16 +133,18 @@ class _RealHomeState extends State<RealHome> {
                 selected: _selectedIndex == 0,
                 onTap: () {
                   Navigator.pop(context);
-                  _onNavTap(0);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.favorite),
-                title: const Text('Favorites'),
-                selected: _selectedIndex == 1,
-                onTap: () {
-                  Navigator.pop(context);
-                  _onNavTap(1);
+                  if (_selectedIndex == 0) {
+                    _homeTapCount++;
+                    if (_homeTapCount >= 10) {
+                      _homeTapCount = 0; // Reset counter
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const TestPage()),
+                      );
+                    }
+                  } else {
+                    _homeTapCount = 0; // Reset if coming from another tab
+                    _onNavTap(0);
+                  }
                 },
               ),
               const Spacer(),
@@ -272,17 +270,6 @@ class _RealHomeState extends State<RealHome> {
                 ),
               ),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedIndex,
-        onTap: _onNavTap,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.favorite),
-            label: 'Favorites',
-          ),
-        ],
-      ),
     );
   }
 }
@@ -372,18 +359,6 @@ class _DetailPage extends StatelessWidget {
                         );
                       },
                       child: const Text('Map'),
-                    ),
-
-                    ElevatedButton(
-                      onPressed: () {
-                        // Navigate to the test page
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (context) => const TestPage(),
-                          ),
-                        );
-                      },
-                      child: const Text('Testing'),
                     ),
 
                     ElevatedButton(

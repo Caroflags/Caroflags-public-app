@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'login.dart';
 
 class SettingsPage extends StatefulWidget {
@@ -69,7 +70,23 @@ class _SettingsPageState extends State<SettingsPage> {
         // Re-authenticate
         await user.reauthenticateWithCredential(credential);
 
-        // Delete user
+        // Delete passes subcollection
+        final passesSnapshot = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .collection('passes')
+            .get();
+        for (var doc in passesSnapshot.docs) {
+          await doc.reference.delete();
+        }
+
+        // Delete user document
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .delete();
+
+        // Delete user authentication record
         await user.delete();
 
         if (!mounted) return;

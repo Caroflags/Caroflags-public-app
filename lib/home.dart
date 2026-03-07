@@ -10,7 +10,6 @@ import 'randomtext.dart';
 import 'testernotice.dart';
 import 'testpage.dart';
 import 'park_status.dart';
-import 'services/ota_service.dart';
 import 'settings.dart';
 
 Future<Map<String, String?>> getUserData() async {
@@ -45,9 +44,6 @@ class _RealHomeState extends State<RealHome> {
   void initState() {
     super.initState();
     _apiHealthFuture = http.get(Uri.parse('https://api.caroflags.xyz/health'));
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      OtaService.checkForUpdates(context);
-    });
   }
 
   int _selectedIndex = 0;

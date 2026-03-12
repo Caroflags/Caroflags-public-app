@@ -208,11 +208,6 @@ class _LoginPageState extends State<LoginPage> {
               margin: const EdgeInsets.only(top: 16.0),
               child: Column(
                 children: [
-                  const Text(
-                    'Stupid?',
-                    style: TextStyle(fontSize: 16, color: Colors.grey),
-                  ),
-                  const SizedBox(height: 8),
                   ElevatedButton(
                     onPressed: () {
                       if (_emailController.text.isNotEmpty) {

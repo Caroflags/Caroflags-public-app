@@ -145,7 +145,7 @@ class _MapScreenState extends State<MapScreen> {
     {'name': 'Wilderness Run', 'lat': 35.101111, 'lng': -80.938889},
     {'name': 'Woodstock Express', 'lat': 35.101040, 'lng': -80.939422},
     {'name': 'Ripcord', 'lat': 35.10240, 'lng': -80.94020},
-    {'name': 'WindSeeker', 'lat': 35.1021, 'lng': -80.941347},
+    {'name': 'Windseeker', 'lat': 35.1021, 'lng': -80.941347},
     {'name': 'Electro-Spin', 'lat': 35.1023, 'lng': -80.9435},
     {'name': 'Zephyr', 'lat': 35.102088, 'lng': -80.943108},
     {'name': "Rock 'N' Roller", 'lat': 35.102941, 'lng': -80.943800},

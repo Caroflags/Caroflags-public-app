@@ -66,7 +66,7 @@ class _PassesScreenState extends State<PassesScreen> {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                             content: Text(
-                              'Camera permission is required to scan passports.',
+                              'Camera permission is required to scan your pass.',
                             ),
                           ),
                         );
@@ -77,7 +77,7 @@ class _PassesScreenState extends State<PassesScreen> {
               ),
               Padding(padding: const EdgeInsets.only(bottom: 16.0)),
               Text(
-                'If you are going to scan a barcode, please scan the barcode and not the qr code. The qr code is worse than the barcode.',
+                'If you are going to scan the qr code on your pass, no. Scan the barcode. Please i beg you.',
                 style: TextStyle(color: Colors.grey[600]),
               ),
             ],
@@ -89,10 +89,12 @@ class _PassesScreenState extends State<PassesScreen> {
               },
               child: const Text('Cancel'),
             ),
+            // Uhh the fuckin uhh code for adding a pass
             TextButton(
               onPressed: () async {
                 final name = nameController.text.trim();
                 final id = idController.text.trim();
+                showSnackbar(context, 'Your pass $id has been added!');
 
                 if (name.isNotEmpty && id.isNotEmpty) {
                   await _firestore
@@ -101,6 +103,9 @@ class _PassesScreenState extends State<PassesScreen> {
                       .collection('passes')
                       .add({'name': name, 'id': id});
                   _cachedPasses.clear(); // Clear cache after adding a new pass
+                  if (context.mounted) {
+                    setState(() {}); // Refresh the UI
+                  }
                 }
 
                 if (context.mounted) {
@@ -109,6 +114,7 @@ class _PassesScreenState extends State<PassesScreen> {
               },
               child: const Text('Add'),
             ),
+            // end of code for adding pass
           ],
         );
       },

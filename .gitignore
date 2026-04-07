@@ -23,7 +23,6 @@ android/app/key.properties
 .pub-cache/
 .pub/
 /build/
-lib/generated_plugin_registrant.dart
 
 
 .idea/

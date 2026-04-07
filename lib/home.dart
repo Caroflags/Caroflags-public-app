@@ -54,14 +54,21 @@ class _RealHomeState extends State<RealHome> {
     {
       'title': 'Wallet',
       'subtitle': 'This is where all of your passes go',
+      'icon': Icons.wallet,
       'page': PassesScreen(
         userId: FirebaseAuth.instance.currentUser?.uid ?? '',
       ),
     },
-    {'title': 'Map', 'subtitle': 'The map for Carowinds', 'page': MapScreen()},
+    {
+      'title': 'Map',
+      'subtitle': 'The map for Carowinds',
+      'icon': Icons.map,
+      'page': MapScreen(),
+    },
     {
       'title': 'Restaurants',
       'subtitle': 'A list of the restaurants',
+      'icon': Icons.restaurant,
       'page': RestaurantsPage(),
     },
   ];
@@ -227,14 +234,7 @@ class _RealHomeState extends State<RealHome> {
                                 Expanded(
                                   child: Row(
                                     children: [
-                                      CircleAvatar(
-                                        child: Text(
-                                          (item['title'] != null &&
-                                                  item['title']!.isNotEmpty)
-                                              ? item['title']![0]
-                                              : '?',
-                                        ),
-                                      ),
+                                      Icon(item['icon']),
                                       const SizedBox(width: 8),
                                       Expanded(
                                         child: Text(

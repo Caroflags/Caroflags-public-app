@@ -3,7 +3,7 @@ import 'home.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'login.dart';
-import 'notifications.dart'; // replaced awesome_notifications
+import 'notifications.dart';
 import 'firebase_options.dart';
 
 void main() async {

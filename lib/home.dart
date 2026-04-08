@@ -298,7 +298,7 @@ class _DetailPage extends StatelessWidget {
                   return const SizedBox.shrink();
                 } else {
                   return Text(
-                    'Uh oh! The servers seem to be having some issues right now. Our servers restart every month and that takes about 5 minutes. If it doesn\'t work after 5 minutes, we may acutally be having some issues. Error code: ${snapshot.data?.statusCode ?? 'good lord we dont even know what error code it is'}',
+                    'Uh oh! The servers seem to be having some issues right now. Error code: ${snapshot.data?.statusCode ?? 'good lord we dont even know what error code it is'}',
                   );
                 }
               },

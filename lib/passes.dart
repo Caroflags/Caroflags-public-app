@@ -109,7 +109,7 @@ class _PassesScreenState extends State<PassesScreen> {
               ),
               Padding(padding: const EdgeInsets.only(bottom: 16.0)),
               Text(
-                'If you are going to scan the qr code on your pass, no. Scan the barcode. Please I beg you. PLEASE.',
+                'You can only scan the barcode on the pass, not the qr code. The barcode is better anyways.',
                 style: TextStyle(color: Colors.grey[600]),
               ),
             ],
@@ -338,6 +338,128 @@ class _PassesScreenState extends State<PassesScreen> {
                         );
                       },
                       child: const Text('Delete Pass'),
+                    ),
+                    // EOL
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.grey[300],
+                        foregroundColor: Colors.black,
+                      ),
+                      onPressed: () {
+                        final nameController = TextEditingController(
+                          text: name,
+                        );
+                        String? selectedTier = tier;
+                        final idController = TextEditingController(text: id);
+
+                        showDialog(
+                          context: context,
+                          builder: (context) {
+                            return AlertDialog(
+                              title: const Text('Edit Pass'),
+                              content: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  TextField(
+                                    controller: nameController,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Name',
+                                    ),
+                                  ),
+
+                                  Padding(
+                                    padding: const EdgeInsets.only(
+                                      bottom: 16.0,
+                                    ),
+                                  ),
+
+                                  StatefulBuilder(
+                                    builder: (context, unfuckDropdownButton) {
+                                      return DropdownButton(
+                                        value: selectedTier,
+                                        isExpanded: true,
+                                        hint: const Text('Select Tier'),
+                                        items: const [
+                                          DropdownMenuItem(
+                                            value: 'Silver',
+                                            child: Text('Silver'),
+                                          ),
+                                          DropdownMenuItem(
+                                            value: 'Gold',
+                                            child: Text('Gold'),
+                                          ),
+                                          DropdownMenuItem(
+                                            value: 'Platinum',
+                                            child: Text('Platinum'),
+                                          ),
+                                          DropdownMenuItem(
+                                            value: 'Fast Lane',
+                                            child: Text('Fast Lane'),
+                                          ),
+                                        ],
+                                        onChanged: (value) {
+                                          selectedTier = value;
+                                          unfuckDropdownButton(() {});
+                                        },
+                                      );
+                                    },
+                                  ),
+
+                                  Padding(
+                                    padding: const EdgeInsets.only(
+                                      bottom: 16.0,
+                                    ),
+                                  ),
+
+                                  TextField(
+                                    controller: idController,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Pass Number',
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () {
+                                    Navigator.of(context).pop();
+                                  },
+                                  child: const Text('Cancel'),
+                                ),
+                                TextButton(
+                                  onPressed: () async {
+                                    showSnackbar(
+                                      context,
+                                      'Changes Saved for $passId',
+                                    );
+                                    await _firestore
+                                        .collection('users')
+                                        .doc(widget.userId)
+                                        .collection('passes')
+                                        .doc(passId)
+                                        .update({
+                                          'name': nameController.text,
+                                          'tier': selectedTier,
+                                          'id': idController.text,
+                                        });
+                                    _cachedPasses.remove(
+                                      passId,
+                                    ); // Remove from cache after deletion
+                                    if (context.mounted) {
+                                      setState(() {}); // Refresh the UI
+                                    }
+                                    if (context.mounted) {
+                                      Navigator.of(context).pop();
+                                    }
+                                  },
+                                  child: const Text('Save Changes'),
+                                ),
+                              ],
+                            );
+                          },
+                        );
+                      },
+                      child: const Text('Edit Pass'),
                     ),
                   ],
                 ),

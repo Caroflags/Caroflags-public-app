@@ -12,6 +12,35 @@ import 'testpage.dart';
 import 'park_status.dart';
 import 'settings.dart';
 
+class HealthCheckWidget extends StatefulWidget {
+  const HealthCheckWidget({Key? key}) : super(key: key);
+
+  @override
+  State<HealthCheckWidget> createState() => _HealthCheckWidgetState();
+}
+
+class _HealthCheckWidgetState extends State<HealthCheckWidget> {
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<http.Response>(
+      future: http.get(Uri.parse('https://api.caroflags.xyz/health')),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const CircularProgressIndicator();
+        } else if (snapshot.hasError) {
+          return const Text('Error fetching API status.');
+        } else if (snapshot.hasData && snapshot.data!.statusCode == 200) {
+          return const SizedBox.shrink();
+        } else {
+          return Text(
+            'Uh oh! The servers seem to be having some issues right now. Error code: ${snapshot.data?.statusCode ?? 'good lord we dont even know what error code it is'}',
+          );
+        }
+      },
+    );
+  }
+}
+
 Future<Map<String, String?>> getUserData() async {
   User? user = FirebaseAuth.instance.currentUser;
   if (user == null) return {'username': null, 'email': null};
@@ -204,7 +233,7 @@ class _RealHomeState extends State<RealHome> {
                       }
                     },
                   ),
-
+                  const HealthCheckWidget(),
                   Text(randomStatement),
                   const ParkStatus(),
                   const SizedBox(height: 8),

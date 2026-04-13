@@ -12,14 +12,40 @@ class BarcodeScannerScreen extends StatefulWidget {
 class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
   bool _isProcessing = false;
   final MobileScannerController _controller = MobileScannerController(
-    detectionSpeed: DetectionSpeed.noDuplicates,
+    detectionSpeed: DetectionSpeed.unrestricted,
     formats: const [BarcodeFormat.code128],
   );
+
+  String? _lastScannedCode;
+  int _conscount = 0;
+  final int _consthreshold = 10;
 
   @override
   void dispose() {
     _controller.dispose();
     super.dispose();
+  }
+
+  void _handleDetection(Barcode barcode) {
+    if (barcode.rawValue == _lastScannedCode) {
+      _conscount++;
+    } else {
+      _lastScannedCode = barcode.rawValue;
+      _conscount = 1;
+    }
+
+    if (_conscount >= _consthreshold) {
+      _isProcessing = true;
+
+      if (!mounted) return;
+
+      if (widget.returnResult) {
+        Navigator.pop(context, _lastScannedCode);
+      } else {
+        _conscount = 0;
+        _showResultDialog(_lastScannedCode!);
+      }
+    }
   }
 
   @override
@@ -62,7 +88,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
             left: 0,
             right: 0,
             child: Text(
-              'Please have the barcode close to the camera to avoid any errors.',
+              'Please hold the barcode up to the camera.',
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: Colors.white,

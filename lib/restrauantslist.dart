@@ -8,24 +8,28 @@ class RestaurantsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Restaurants'),
-      ),
+      appBar: AppBar(title: const Text('Restaurants')),
       body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance.collection('restaurants').snapshots(),
+        stream: FirebaseFirestore.instance
+            .collection('restaurants')
+            .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
 
           if (snapshot.hasError) {
-            return Center(child: 
-            Text('Uh oh something happened: ${snapshot.error}'));
-
+            return Center(
+              child: Text('Uh oh something happened: ${snapshot.error}'),
+            );
           }
 
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return const Center(child: Text('Couldnt find any restraurants, If you see this we have switched our backend over, update your app'));
+            return const Center(
+              child: Text(
+                'Couldnt find any restraurants, If you see this we have switched our backend over, update your app',
+              ),
+            );
           }
 
           final restaurants = snapshot.data!.docs;
@@ -37,17 +41,25 @@ class RestaurantsPage extends StatelessWidget {
               final data = restaurant.data() as Map<String, dynamic>;
 
               return Card(
-                margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
+                margin: const EdgeInsets.symmetric(
+                  vertical: 8.0,
+                  horizontal: 16.0,
+                ),
                 child: ListTile(
                   leading: const Icon(Icons.restaurant), // Icon for each item
-                  title: Text(data['Name'] ?? 'Uhh, Whats this again i forgot'), // Display restaurant name
-                  subtitle: Text(data['Description'] ?? 'Uhh, Whats this again i forgot'), // Display description
+                  title: Text(
+                    data['Name'] ?? 'Uhh, Whats this again i forgot',
+                  ), // Display restaurant name
+                  subtitle: Text(
+                    data['Description'] ?? 'Uhh, Whats this again i forgot',
+                  ), // Display description
                   onTap: () {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
                         builder: (context) => RestaurantViewer(
-                          restaurantId: restaurant.id, // Pass the restaurant ID to the viewer
+                          restaurantId: restaurant
+                              .id, // Pass the restaurant ID to the viewer
                         ),
                       ),
                     );

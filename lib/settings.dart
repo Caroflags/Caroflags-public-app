@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'login.dart';
 
 class SettingsPage extends StatefulWidget {
@@ -11,6 +13,45 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
+  bool _useLocalPasses = false;
+  bool _isAnonymous = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSettings();
+  }
+
+  Future<void> _loadSettings() async {
+    final user = FirebaseAuth.instance.currentUser;
+    _isAnonymous = user?.isAnonymous ?? false;
+
+    final prefs = await SharedPreferences.getInstance();
+    if (_isAnonymous) {
+      if (mounted) {
+        setState(() {
+          _useLocalPasses = true;
+        });
+      }
+      await prefs.setBool('use_local_passes', true);
+    } else {
+      if (mounted) {
+        setState(() {
+          _useLocalPasses = prefs.getBool('use_local_passes') ?? false;
+        });
+      }
+    }
+  }
+
+  Future<void> _toggleLocalPasses(bool value) async {
+    if (_isAnonymous) return;
+    setState(() {
+      _useLocalPasses = value;
+    });
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('use_local_passes', value);
+  }
+
   Future<void> _deleteAccount() async {
     final passwordController = TextEditingController();
 
@@ -36,40 +77,57 @@ class _SettingsPageState extends State<SettingsPage> {
 
     if (confirm != true || !mounted) return;
 
-    String? password = await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Confirm Password'),
-        content: TextField(
-          controller: passwordController,
-          obscureText: true,
-          decoration: const InputDecoration(labelText: 'Password'),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, null),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, passwordController.text),
-            child: const Text('Submit'),
-          ),
-        ],
-      ),
-    );
+    User? user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
 
-    if (password == null || password.isEmpty || !mounted) return;
+    if (!user.isAnonymous) {
+      String? password = await showDialog<String>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Confirm Password'),
+          content: TextField(
+            controller: passwordController,
+            obscureText: true,
+            decoration: const InputDecoration(labelText: 'Password'),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, null),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, passwordController.text),
+              child: const Text('Submit'),
+            ),
+          ],
+        ),
+      );
+
+      if (password == null || password.isEmpty || !mounted) return;
+
+      try {
+        if (user.email != null) {
+          AuthCredential credential = EmailAuthProvider.credential(
+            email: user.email!,
+            password: password,
+          );
+          // Re-authenticate
+          await user.reauthenticateWithCredential(credential);
+        }
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to reauthenticate: $e')));
+        return;
+      }
+    }
 
     try {
-      User? user = FirebaseAuth.instance.currentUser;
-      if (user != null && user.email != null) {
-        AuthCredential credential = EmailAuthProvider.credential(
-          email: user.email!,
-          password: password,
-        );
-        // Re-authenticate
-        await user.reauthenticateWithCredential(credential);
+      // Clear local passes to be safe
+      await Hive.box('local_passes').clear();
 
+      if (!user.isAnonymous) {
         // Delete passes subcollection
         final passesSnapshot = await FirebaseFirestore.instance
             .collection('users')
@@ -85,34 +143,34 @@ class _SettingsPageState extends State<SettingsPage> {
             .collection('users')
             .doc(user.uid)
             .delete();
-
-        // Delete user authentication record
-        await user.delete();
-
-        if (!mounted) return;
-        await showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (context) => AlertDialog(
-            title: const Text('Thanks for using Caroflags!'),
-            content: const Text(
-              'Your account data has now been deleted. Thanks for using caroflags!',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Okay'),
-              ),
-            ],
-          ),
-        );
-
-        if (!mounted) return;
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (context) => const LoginPage()),
-          (Route<dynamic> route) => false,
-        );
       }
+
+      // Delete user authentication record
+      await user.delete();
+
+      if (!mounted) return;
+      await showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          title: const Text('Thanks for using Caroflags!'),
+          content: const Text(
+            'Your account data has now been deleted. Thanks for using caroflags!',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Okay'),
+            ),
+          ],
+        ),
+      );
+
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const LoginPage()),
+        (Route<dynamic> route) => false,
+      );
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -130,20 +188,29 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                foregroundColor: Colors.red,
-                textStyle: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-              onPressed: _deleteAccount,
-              child: const Text('Delete account'),
+      body: ListView(
+        padding: const EdgeInsets.all(16.0),
+        children: [
+          SwitchListTile(
+            title: const Text('Use Local Passes'),
+            subtitle: _isAnonymous
+                ? const Text(
+                    'You cannot use cloud passes because you are on an anonymous account.',
+                  )
+                : const Text('Store passes locally instead of in the cloud.'),
+            value: _useLocalPasses,
+            onChanged: _isAnonymous ? null : _toggleLocalPasses,
+          ),
+          const SizedBox(height: 32),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              foregroundColor: Colors.red,
+              textStyle: const TextStyle(fontWeight: FontWeight.bold),
             ),
-          ],
-        ),
+            onPressed: _deleteAccount,
+            child: const Text('Delete account'),
+          ),
+        ],
       ),
     );
   }

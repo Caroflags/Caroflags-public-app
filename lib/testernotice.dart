@@ -1,6 +1,4 @@
-
 import 'package:flutter/material.dart';
-
 
 class TesterNotice extends StatelessWidget {
   @override

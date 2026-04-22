@@ -13,7 +13,6 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
   bool _isProcessing = false;
   final MobileScannerController _controller = MobileScannerController(
     detectionSpeed: DetectionSpeed.unrestricted,
-    formats: const [BarcodeFormat.code128],
   );
 
   String? _lastScannedCode;
@@ -88,7 +87,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
             left: 0,
             right: 0,
             child: Text(
-              'Please hold the barcode up to the camera.',
+              'Please scan the barcode and not the QR code.',
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: Colors.white,

@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'randomtext.dart';
 import 'scanbarcode.dart';
 
@@ -17,6 +20,34 @@ class PassesScreen extends StatefulWidget {
 class _PassesScreenState extends State<PassesScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final Map<String, dynamic> _cachedPasses = {}; // Cache for passes
+
+  bool _useLocalPasses = false;
+  bool _isLoadingPrefs = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPrefs();
+  }
+
+  Future<void> _loadPrefs() async {
+    final user = FirebaseAuth.instance.currentUser;
+    final isAnonymous = user?.isAnonymous ?? false;
+    final prefs = await SharedPreferences.getInstance();
+
+    if (isAnonymous) {
+      _useLocalPasses = true;
+    } else {
+      _useLocalPasses = prefs.getBool('use_local_passes') ?? false;
+    }
+
+    if (mounted) {
+      setState(() {
+        _isLoadingPrefs = false;
+      });
+    }
+  }
+
   Future<void> _addPass() async {
     final nameController = TextEditingController();
     final idController = TextEditingController();
@@ -130,11 +161,22 @@ class _PassesScreenState extends State<PassesScreen> {
                 showSnackbar(context, 'Your pass $id has been added!');
 
                 if (name.isNotEmpty && id.isNotEmpty && tier != null) {
-                  await _firestore
-                      .collection('users')
-                      .doc(widget.userId)
-                      .collection('passes')
-                      .add({'name': name, 'id': id, 'tier': tier});
+                  if (_useLocalPasses) {
+                    final box = Hive.box('local_passes');
+                    final newKey = DateTime.now().millisecondsSinceEpoch
+                        .toString();
+                    await box.put(newKey, {
+                      'name': name,
+                      'id': id,
+                      'tier': tier,
+                    });
+                  } else {
+                    await _firestore
+                        .collection('users')
+                        .doc(widget.userId)
+                        .collection('passes')
+                        .add({'name': name, 'id': id, 'tier': tier});
+                  }
 
                   _cachedPasses.clear(); // Clear cache after adding a new pass
                   if (context.mounted) {
@@ -163,315 +205,390 @@ class _PassesScreenState extends State<PassesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoadingPrefs) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Passes')),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(title: const Text('Passes')),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: _firestore
-            .collection('users')
-            .doc(widget.userId)
-            .collection('passes')
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+      body: _useLocalPasses ? _buildLocalPasses() : _buildCloudPasses(),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _addPass,
+        child: const Icon(Icons.add),
+      ),
+    );
+  }
+
+  Widget _buildLocalPasses() {
+    return ValueListenableBuilder(
+      valueListenable: Hive.box('local_passes').listenable(),
+      builder: (context, Box box, _) {
+        if (box.isEmpty) {
+          final nopassesText = nopasses;
+          return Center(child: Text(nopassesText));
+        }
+
+        _cachedPasses.clear();
+        for (var key in box.keys) {
+          final passMap = box.get(key) as Map;
+          _cachedPasses[key.toString()] = {
+            'name': passMap['name'],
+            'id': passMap['id'],
+            'tier': passMap['tier'],
+          };
+        }
+
+        return _buildPassesCarousel();
+      },
+    );
+  }
+
+  Widget _buildCloudPasses() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: _firestore
+          .collection('users')
+          .doc(widget.userId)
+          .collection('passes')
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          final nopassesText = nopasses;
+          return Center(child: Text(nopassesText));
+        }
+
+        final passes = snapshot.data!.docs;
+
+        _cachedPasses.clear();
+
+        // Cache the passes
+        for (var pass in passes) {
+          _cachedPasses[pass.id] = pass.data();
+        }
+
+        return _buildPassesCarousel();
+      },
+    );
+  }
+
+  Widget _buildPassesCarousel() {
+    return PageView.builder(
+      itemCount: _cachedPasses.length,
+      itemBuilder: (context, index) {
+        final passId = _cachedPasses.keys.elementAt(index);
+        final pass = _cachedPasses[passId];
+        final name = pass['name'];
+        final id = pass['id'];
+        final tier = pass['tier'];
+
+        Color getTierColor(String? tier) {
+          switch (tier) {
+            case 'Gold':
+              return const Color.fromARGB(
+                255,
+                241,
+                222,
+                164,
+              ); // Light Gold tint
+            case 'Silver':
+              return const Color.fromARGB(
+                255,
+                144,
+                152,
+                156,
+              ); // Silver/Grey tint
+            case 'Platinum':
+              return const Color.fromARGB(
+                101,
+                255,
+                255,
+                255,
+              ); // Platinum/Purple tint
+            case 'Fast Lane':
+              return const Color.fromARGB(255, 209, 244, 54); // Fast Lane tint
+            default:
+              return Colors.white; // Default if null or unknown
           }
+        }
 
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            final nopassesText = nopasses;
-            return Center(child: Text(nopassesText));
-          }
+        bool isDark(Color color) {
+          return color.computeLuminance() < 0.173;
+        }
 
-          final passes = snapshot.data!.docs;
+        return Card(
+          color: getTierColor(tier),
+          margin: const EdgeInsets.all(8.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                name,
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: isDark(getTierColor(tier))
+                      ? Colors.white
+                      : Colors.black,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'ID: $id',
+                style: TextStyle(
+                  fontSize: 18,
+                  color: isDark(getTierColor(tier))
+                      ? Colors.white
+                      : Colors.black,
+                ),
+              ),
+              const SizedBox(height: 16),
 
-          // Cache the passes
-          for (var pass in passes) {
-            _cachedPasses[pass.id] = pass.data();
-          }
+              Text(
+                'Type: $tier',
+                style: TextStyle(
+                  fontSize: 18,
+                  color: isDark(getTierColor(tier))
+                      ? Colors.white
+                      : Colors.black,
+                ),
+              ),
 
-          return PageView.builder(
-            itemCount: _cachedPasses.length,
-            itemBuilder: (context, index) {
-              final passId = _cachedPasses.keys.elementAt(index);
-              final pass = _cachedPasses[passId];
-              final name = pass['name'];
-              final id = pass['id'];
-              final tier = pass['tier'];
+              const SizedBox(height: 16),
 
-              Color getTierColor(String? tier) {
-                switch (tier) {
-                  case 'Gold':
-                    return const Color.fromARGB(
-                      255,
-                      241,
-                      222,
-                      164,
-                    ); // Light Gold tint
-                  case 'Silver':
-                    return const Color.fromARGB(
-                      255,
-                      144,
-                      152,
-                      156,
-                    ); // Silver/Grey tint
-                  case 'Platinum':
-                    return const Color.fromARGB(
-                      101,
-                      255,
-                      255,
-                      255,
-                    ); // Platinum/Purple tint
-                  case 'Fast Lane':
-                    return const Color.fromARGB(
-                      255,
-                      209,
-                      244,
-                      54,
-                    ); // Fast Lane tint
-                  default:
-                    return Colors.white; // Default if null or unknown
-                }
-              }
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: QrImageView(
+                  data: id,
+                  version: QrVersions.auto,
+                  size: 300.0,
+                  backgroundColor: Colors.white,
+                ),
+              ),
+              Padding(padding: EdgeInsets.all(16)),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.grey[300],
+                  foregroundColor: Colors.black,
+                ),
+                onPressed: () async {
+                  // Show popup for confirmation
+                  showDialog(
+                    context: context,
+                    builder: (context) {
+                      return AlertDialog(
+                        title: const Text('Delete Pass'),
+                        content: const Text(
+                          'Are you sure you want to delete this pass?',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () {
+                              Navigator.of(context).pop();
+                            },
+                            child: const Text('Cancel'),
+                          ),
+                          TextButton(
+                            onPressed: () async {
+                              showSnackbar(context, 'PassID: $passId deleted.');
+                              if (_useLocalPasses) {
+                                await Hive.box('local_passes').delete(passId);
+                              } else {
+                                await _firestore
+                                    .collection('users')
+                                    .doc(widget.userId)
+                                    .collection('passes')
+                                    .doc(passId)
+                                    .delete();
+                              }
+                              _cachedPasses.remove(passId);
+                              if (context.mounted) {
+                                setState(() {});
+                              }
+                              if (context.mounted) {
+                                Navigator.of(context).pop();
+                              }
+                            },
+                            child: const Text('Delete'),
+                          ),
+                        ],
+                      );
+                    },
+                  );
+                },
+                child: const Text('Delete Pass'),
+              ),
+              // EOL
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.grey[300],
+                  foregroundColor: Colors.black,
+                ),
+                onPressed: () {
+                  final nameController = TextEditingController(text: name);
+                  String? selectedTier = tier;
+                  final idController = TextEditingController(text: id);
 
-              bool isDark(Color color) {
-                return color.computeLuminance() < 0.173;
-              }
-
-              return Card(
-                color: getTierColor(tier),
-                margin: const EdgeInsets.all(8.0),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      name,
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: isDark(getTierColor(tier))
-                            ? Colors.white
-                            : Colors.black,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'ID: $id',
-                      style: TextStyle(
-                        fontSize: 18,
-                        color: isDark(getTierColor(tier))
-                            ? Colors.white
-                            : Colors.black,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    Text(
-                      'Type: $tier',
-                      style: TextStyle(
-                        fontSize: 18,
-                        color: isDark(getTierColor(tier))
-                            ? Colors.white
-                            : Colors.black,
-                      ),
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(10),
-                      child: QrImageView(
-                        data: id,
-                        version: QrVersions.auto,
-                        size: 300.0,
-                        backgroundColor: Colors.white,
-                      ),
-                    ),
-                    Padding(padding: EdgeInsets.all(16)),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.grey[300],
-                        foregroundColor: Colors.black,
-                      ),
-                      onPressed: () async {
-                        // Show popup for confirmation
-                        showDialog(
-                          context: context,
-                          builder: (context) {
-                            return AlertDialog(
-                              title: const Text('Delete Pass'),
-                              content: const Text(
-                                'Are you sure you want to delete this pass?',
+                  showDialog(
+                    context: context,
+                    builder: (context) {
+                      return AlertDialog(
+                        title: const Text('Edit Pass'),
+                        content: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            TextField(
+                              controller: nameController,
+                              decoration: const InputDecoration(
+                                labelText: 'Name',
                               ),
-                              actions: [
-                                TextButton(
-                                  onPressed: () {
-                                    Navigator.of(context).pop();
+                            ),
+
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 16.0),
+                            ),
+
+                            StatefulBuilder(
+                              builder: (context, unfuckDropdownButton) {
+                                return DropdownButton(
+                                  value: selectedTier,
+                                  isExpanded: true,
+                                  hint: const Text('Select Tier'),
+                                  items: const [
+                                    DropdownMenuItem(
+                                      value: 'Silver',
+                                      child: Text('Silver'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'Gold',
+                                      child: Text('Gold'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'Platinum',
+                                      child: Text('Platinum'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'Fast Lane',
+                                      child: Text('Fast Lane'),
+                                    ),
+                                  ],
+                                  onChanged: (value) {
+                                    selectedTier = value;
+                                    unfuckDropdownButton(() {});
                                   },
-                                  child: const Text('Cancel'),
-                                ),
-                                TextButton(
-                                  onPressed: () async {
-                                    showSnackbar(
-                                      context,
-                                      'PassID: $passId deleted.',
-                                    );
-                                    await _firestore
-                                        .collection('users')
-                                        .doc(widget.userId)
-                                        .collection('passes')
-                                        .doc(passId)
-                                        .delete();
-                                    _cachedPasses.remove(
-                                      passId,
-                                    ); // Remove from cache after deletion
-                                    if (context.mounted) {
-                                      setState(() {}); // Refresh the UI
-                                    }
-                                    if (context.mounted) {
-                                      Navigator.of(context).pop();
-                                    }
-                                  },
-                                  child: const Text('Delete'),
-                                ),
-                              ],
-                            );
-                          },
-                        );
-                      },
-                      child: const Text('Delete Pass'),
-                    ),
-                    // EOL
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.grey[300],
-                        foregroundColor: Colors.black,
-                      ),
-                      onPressed: () {
-                        final nameController = TextEditingController(
-                          text: name,
-                        );
-                        String? selectedTier = tier;
-                        final idController = TextEditingController(text: id);
+                                );
+                              },
+                            ),
 
-                        showDialog(
-                          context: context,
-                          builder: (context) {
-                            return AlertDialog(
-                              title: const Text('Edit Pass'),
-                              content: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  TextField(
-                                    controller: nameController,
-                                    decoration: const InputDecoration(
-                                      labelText: 'Name',
-                                    ),
-                                  ),
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 16.0),
+                            ),
 
-                                  Padding(
-                                    padding: const EdgeInsets.only(
-                                      bottom: 16.0,
-                                    ),
-                                  ),
-
-                                  StatefulBuilder(
-                                    builder: (context, unfuckDropdownButton) {
-                                      return DropdownButton(
-                                        value: selectedTier,
-                                        isExpanded: true,
-                                        hint: const Text('Select Tier'),
-                                        items: const [
-                                          DropdownMenuItem(
-                                            value: 'Silver',
-                                            child: Text('Silver'),
-                                          ),
-                                          DropdownMenuItem(
-                                            value: 'Gold',
-                                            child: Text('Gold'),
-                                          ),
-                                          DropdownMenuItem(
-                                            value: 'Platinum',
-                                            child: Text('Platinum'),
-                                          ),
-                                          DropdownMenuItem(
-                                            value: 'Fast Lane',
-                                            child: Text('Fast Lane'),
-                                          ),
-                                        ],
-                                        onChanged: (value) {
-                                          selectedTier = value;
-                                          unfuckDropdownButton(() {});
-                                        },
-                                      );
-                                    },
-                                  ),
-
-                                  Padding(
-                                    padding: const EdgeInsets.only(
-                                      bottom: 16.0,
-                                    ),
-                                  ),
-
-                                  TextField(
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: TextField(
                                     controller: idController,
                                     decoration: const InputDecoration(
                                       labelText: 'Pass Number',
                                     ),
                                   ),
-                                ],
-                              ),
-                              actions: [
-                                TextButton(
-                                  onPressed: () {
-                                    Navigator.of(context).pop();
-                                  },
-                                  child: const Text('Cancel'),
                                 ),
-                                TextButton(
+
+                                IconButton(
+                                  icon: const Icon(Icons.qr_code_scanner),
                                   onPressed: () async {
-                                    showSnackbar(
-                                      context,
-                                      'Changes Saved for $passId',
-                                    );
-                                    await _firestore
-                                        .collection('users')
-                                        .doc(widget.userId)
-                                        .collection('passes')
-                                        .doc(passId)
-                                        .update({
-                                          'name': nameController.text,
-                                          'tier': selectedTier,
-                                          'id': idController.text,
-                                        });
-                                    _cachedPasses.remove(
-                                      passId,
-                                    ); // Remove from cache after deletion
-                                    if (context.mounted) {
-                                      setState(() {}); // Refresh the UI
-                                    }
-                                    if (context.mounted) {
-                                      Navigator.of(context).pop();
+                                    var status = await Permission.camera
+                                        .request();
+                                    if (status.isGranted) {
+                                      if (!context.mounted) return;
+                                      final result = await Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              const BarcodeScannerScreen(
+                                                returnResult: true,
+                                              ),
+                                        ),
+                                      );
+                                      if (result != null && result is String) {
+                                        idController.text = result;
+                                      }
+                                    } else {
+                                      if (!context.mounted) return;
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            'Camera permission is required to scan your pass.',
+                                          ),
+                                        ),
+                                      );
                                     }
                                   },
-                                  child: const Text('Save Changes'),
                                 ),
                               ],
-                            );
-                          },
-                        );
-                      },
-                      child: const Text('Edit Pass'),
-                    ),
-                  ],
-                ),
-              );
-            },
-          );
-        },
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _addPass,
-        child: const Icon(Icons.add),
-      ),
+                            ),
+                          ],
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () {
+                              Navigator.of(context).pop();
+                            },
+                            child: const Text('Cancel'),
+                          ),
+                          TextButton(
+                            onPressed: () async {
+                              showSnackbar(
+                                context,
+                                'Changes Saved for $passId',
+                              );
+                              if (_useLocalPasses) {
+                                await Hive.box('local_passes').put(passId, {
+                                  'name': nameController.text,
+                                  'tier': selectedTier,
+                                  'id': idController.text,
+                                });
+                              } else {
+                                await _firestore
+                                    .collection('users')
+                                    .doc(widget.userId)
+                                    .collection('passes')
+                                    .doc(passId)
+                                    .update({
+                                      'name': nameController.text,
+                                      'tier': selectedTier,
+                                      'id': idController.text,
+                                    });
+                              }
+                              _cachedPasses.remove(passId);
+                              if (context.mounted) {
+                                setState(() {});
+                              }
+                              if (context.mounted) {
+                                Navigator.of(context).pop();
+                              }
+                            },
+                            child: const Text('Save Changes'),
+                          ),
+                        ],
+                      );
+                    },
+                  );
+                },
+                child: const Text('Edit Pass'),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

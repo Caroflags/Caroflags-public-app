@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart'; // Import Firebase Authentication
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'login.dart';
+import 'home.dart';
+import 'main.dart';
 // test commit thingy
 
 void main() {
@@ -132,7 +134,7 @@ class _SignupPageState extends State<SignupPage> {
           context: context,
           builder: (BuildContext context) {
             return AlertDialog(
-              title: const Text('The Caroflags iniation is complete'),
+              title: const Text('The Caroflags signup is complete'),
               content: Text(
                 'Thanks For making an account, $username! Now, You need to verify your email. There should be an email in your inbox. If you don\'t see it, check your spam folder. If the email is in spam, please report it as not spam in your inbox.',
               ),
@@ -252,6 +254,38 @@ class _SignupPageState extends State<SignupPage> {
 
             const SizedBox(height: 16),
             ElevatedButton(onPressed: _signup, child: const Text('Signup')),
+
+            ElevatedButton(
+              onPressed: () {
+                showDialog(
+                  context: context,
+                  builder: (BuildContext context) {
+                    return AlertDialog(
+                      title: const Text('Just so you know...'),
+                      content: const Text(
+                        'Your passes will be saved to your device, but not to the cloud. If you delete the app, you\'ll lose your passes, so keep a copy of your passes just in case!',
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                            FirebaseAuth.instance.signInAnonymously();
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const RealHome(),
+                              ),
+                            );
+                          },
+                          child: const Text('I Understand.'),
+                        ),
+                      ],
+                    );
+                  },
+                );
+              },
+              child: const Text('Sign up Anonymously'),
+            ),
 
             Container(
               margin: const EdgeInsets.only(top: 40.0),

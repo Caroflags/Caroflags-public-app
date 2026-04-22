@@ -295,8 +295,7 @@ class _LoginPageState extends State<LoginPage> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) =>
-                              PrivacyPolicyPage(), // Assuming PrivacyPolicyPage exists
+                          builder: (context) => PrivacyPolicyPage(),
                         ),
                       );
                     },

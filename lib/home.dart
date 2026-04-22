@@ -94,12 +94,6 @@ class _RealHomeState extends State<RealHome> {
       'icon': Icons.map,
       'page': MapScreen(),
     },
-    {
-      'title': 'Restaurants',
-      'subtitle': 'A list of the restaurants',
-      'icon': Icons.restaurant,
-      'page': RestaurantsPage(),
-    },
   ];
   void _onNavTap(int index) {
     setState(() => _selectedIndex = index);

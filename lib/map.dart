@@ -4,7 +4,8 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:vector_map_tiles/vector_map_tiles.dart';
-import 'package:vector_tile_renderer/vector_tile_renderer.dart' hide TileLayer;
+import 'package:vector_tile_renderer/vector_tile_renderer.dart'
+    hide TileLayer, Theme;
 
 import 'dart:async';
 import 'package:http/http.dart' as http;
@@ -12,6 +13,8 @@ import 'dart:convert';
 import 'gzipped_tile_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
+import 'package:intl/intl.dart';
+import 'package:timeago/timeago.dart' as timeago;
 
 // Data Lists
 final List<Map<String, dynamic>> restrooms = [
@@ -130,6 +133,70 @@ class _MapScreenState extends State<MapScreen> {
   int? selectedRideIndex;
   StreamSubscription<Position>? _positionStreamSubscription;
 
+  LatLng? parkingLocation;
+  String? parkingTime;
+  bool _showParkingBubble = false;
+
+  Future<void> _loadParking() async {
+    final prefs = await SharedPreferences.getInstance();
+    final lat = prefs.getDouble('parking_lat');
+    final lng = prefs.getDouble('parking_lng');
+    final time = prefs.getString('parking_time');
+
+    if (lat != null && lng != null && time != null) {
+      setState(() {
+        parkingLocation = LatLng(lat, lng);
+        parkingTime = time;
+      });
+    }
+  }
+
+  void _saveParking() async {
+    if (userLocation == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Cannot find your location. Make sure location services are enabled.',
+          ),
+        ),
+      );
+      return;
+    }
+    final prefs = await SharedPreferences.getInstance();
+    final timeString = DateTime.now().toIso8601String();
+    await prefs.setDouble('parking_lat', userLocation!.latitude);
+    await prefs.setDouble('parking_lng', userLocation!.longitude);
+    await prefs.setString('parking_time', timeString);
+    setState(() {
+      parkingLocation = userLocation;
+      parkingTime = timeString;
+      _showParkingBubble = true;
+    });
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Parking spot saved'),
+          action: SnackBarAction(
+            label: 'Undo',
+            onPressed: _removeParking,
+          ),
+        ),
+      );
+    }
+  }
+
+  void _removeParking() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('parking_lat');
+    await prefs.remove('parking_lng');
+    await prefs.remove('parking_time');
+    setState(() {
+      parkingLocation = null;
+      parkingTime = null;
+      _showParkingBubble = false;
+    });
+  }
+
   List<Map<String, dynamic>> rides = [
     {'name': 'Fury 325', 'lat': 35.10548, 'lng': -80.94246},
     {'name': 'Afterburn', 'lat': 35.100278, 'lng': -80.940833},
@@ -184,6 +251,7 @@ class _MapScreenState extends State<MapScreen> {
     _checkLocationPermission();
     _loadFilters();
     _loadStyle();
+    _loadParking();
   }
 
   Future<void> _checkLocationPermission() async {
@@ -200,6 +268,7 @@ class _MapScreenState extends State<MapScreen> {
             ),
           );
         }
+        return;
       }
     } else if (permission == LocationPermission.deniedForever) {
       if (mounted) {
@@ -211,7 +280,26 @@ class _MapScreenState extends State<MapScreen> {
           ),
         );
       }
+      return;
     }
+
+    _startLocationTracking();
+  }
+
+  void _startLocationTracking() {
+    _positionStreamSubscription =
+        Geolocator.getPositionStream(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.high,
+            distanceFilter: 5,
+          ),
+        ).listen((Position position) {
+          if (mounted) {
+            setState(() {
+              userLocation = LatLng(position.latitude, position.longitude);
+            });
+          }
+        });
   }
 
   Future<void> _loadFilters() async {
@@ -354,7 +442,11 @@ class _MapScreenState extends State<MapScreen> {
         options: MapOptions(
           initialCenter: LatLng(35.1028, -80.9424),
           initialZoom: 16,
-          maxZoom: 22,
+          minZoom: 5.0,
+          maxZoom: 22.0,
+          interactionOptions: const InteractionOptions(
+            flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
+          ),
           onTap: (tapPosition, latlng) {
             if (selectedRideIndex != null) {
               _updateRidePosition(selectedRideIndex!, latlng);
@@ -383,6 +475,102 @@ class _MapScreenState extends State<MapScreen> {
           // Existing Ride Markers
           MarkerLayer(
             markers: [
+              if (parkingLocation != null)
+                Marker(
+                  point: parkingLocation!,
+                  width: 200,
+                  height: 200,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    clipBehavior: Clip.none,
+                    children: [
+                      if (_showParkingBubble)
+                        Positioned(
+                          bottom: 110,
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).cardColor,
+                              borderRadius: BorderRadius.circular(8),
+                              boxShadow: const [
+                                BoxShadow(color: Colors.black26, blurRadius: 4),
+                              ],
+                            ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Builder(
+                                  builder: (context) {
+                                    String displayTime = 'Parked at $parkingTime';
+                                    if (parkingTime != null) {
+                                      try {
+                                        final parsedTime = DateTime.parse(parkingTime!);
+                                        displayTime = 'Parked ${timeago.format(parsedTime, locale: 'en_short')} ago';
+                                      } catch (e) {
+                                        // Fallback if not an ISO string
+                                      }
+                                    }
+                                    return Text(
+                                      displayTime,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12,
+                                      ),
+                                    );
+                                  }
+                                ),
+                                const SizedBox(height: 4),
+                                ElevatedButton(
+                                  onPressed: _removeParking,
+                                  style: ElevatedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 4,
+                                    ),
+                                    minimumSize: const Size(60, 30),
+                                  ),
+                                  child: const Text(
+                                    'Remove',
+                                    style: TextStyle(fontSize: 12),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _showParkingBubble = !_showParkingBubble;
+                          });
+                        },
+                        child: Container(
+                          width: 34,
+                          height: 34,
+                          decoration: BoxDecoration(
+                            color: Colors.orange,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 2),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Colors.black26,
+                                blurRadius: 4,
+                                offset: Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: const Center(
+                            child: Icon(
+                              Icons.directions_car,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               if (userLocation != null)
                 Marker(
                   point: userLocation!,
@@ -664,73 +852,85 @@ class _MapScreenState extends State<MapScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          showDialog(
-            context: context,
-            builder: (context) {
-              return StatefulBuilder(
-                builder: (context, setState) {
-                  return AlertDialog(
-                    title: const Text('Filter Map'),
-                    content: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        SwitchListTile(
-                          title: const Text('Rides'),
-                          value: _showRides,
-                          onChanged: (val) {
-                            setState(() => _showRides = val);
-                            // Outer state update
-                            this.setState(() => this._showRides = val);
-                            _toggleFilter('showRides', val);
-                          },
+      floatingActionButton: Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          FloatingActionButton(
+            heroTag: 'parking_fab',
+            onPressed: () => _saveParking(),
+            child: const Icon(Icons.local_parking),
+          ),
+          const SizedBox(height: 16),
+          FloatingActionButton(
+            heroTag: 'filter_fab',
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (context) {
+                  return StatefulBuilder(
+                    builder: (context, setState) {
+                      return AlertDialog(
+                        title: const Text('Filter Map'),
+                        content: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            SwitchListTile(
+                              title: const Text('Rides'),
+                              value: _showRides,
+                              onChanged: (val) {
+                                setState(() => _showRides = val);
+                                // Outer state update
+                                this.setState(() => this._showRides = val);
+                                _toggleFilter('showRides', val);
+                              },
+                            ),
+                            SwitchListTile(
+                              title: const Text('Restrooms'),
+                              value: _showRestrooms,
+                              onChanged: (val) {
+                                setState(() => _showRestrooms = val);
+                                // Outer state update
+                                this.setState(() => this._showRestrooms = val);
+                                _toggleFilter('showRestrooms', val);
+                              },
+                            ),
+                            SwitchListTile(
+                              title: const Text('Food'),
+                              value: _showFood,
+                              onChanged: (val) {
+                                setState(() => _showFood = val);
+                                // Outer state update
+                                this.setState(() => this._showFood = val);
+                                _toggleFilter('showFood', val);
+                              },
+                            ),
+                            SwitchListTile(
+                              title: const Text('Shops'),
+                              value: _showShops,
+                              onChanged: (val) {
+                                setState(() => _showShops = val);
+                                // Outer state update
+                                this.setState(() => this._showShops = val);
+                                _toggleFilter('showShops', val);
+                              },
+                            ),
+                          ],
                         ),
-                        SwitchListTile(
-                          title: const Text('Restrooms'),
-                          value: _showRestrooms,
-                          onChanged: (val) {
-                            setState(() => _showRestrooms = val);
-                            // Outer state update
-                            this.setState(() => this._showRestrooms = val);
-                            _toggleFilter('showRestrooms', val);
-                          },
-                        ),
-                        SwitchListTile(
-                          title: const Text('Food'),
-                          value: _showFood,
-                          onChanged: (val) {
-                            setState(() => _showFood = val);
-                            // Outer state update
-                            this.setState(() => this._showFood = val);
-                            _toggleFilter('showFood', val);
-                          },
-                        ),
-                        SwitchListTile(
-                          title: const Text('Shops'),
-                          value: _showShops,
-                          onChanged: (val) {
-                            setState(() => _showShops = val);
-                            // Outer state update
-                            this.setState(() => this._showShops = val);
-                            _toggleFilter('showShops', val);
-                          },
-                        ),
-                      ],
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text('Done'),
-                      ),
-                    ],
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: const Text('Done'),
+                          ),
+                        ],
+                      );
+                    },
                   );
                 },
               );
             },
-          );
-        },
-        child: const Icon(Icons.filter_list),
+            child: const Icon(Icons.filter_list),
+          ),
+        ],
       ),
     );
   }

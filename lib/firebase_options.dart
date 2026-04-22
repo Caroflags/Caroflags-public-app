@@ -66,5 +66,4 @@ class DefaultFirebaseOptions {
     projectId: 'betterfy-5bqgih',
     storageBucket: 'betterfy-5bqgih.firebasestorage.app',
   );
-
 }

@@ -1,21 +1,17 @@
 import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:flutter/material.dart';
 
-
-class NotificationService{
+class NotificationService {
   static Future<void> initializeNotifications() async {
-    AwesomeNotifications().initialize(
-      null,
-      [
-        NotificationChannel(
-          channelKey: 'basic_channel',
-          channelName: 'Basic notifications',
-          channelDescription: 'Notification channel for basic tests',
-          defaultColor: const Color.fromARGB(255, 234, 236, 93),
-          ledColor: Colors.white,
-        )
-      ],
-    );
+    AwesomeNotifications().initialize(null, [
+      NotificationChannel(
+        channelKey: 'basic_channel',
+        channelName: 'Basic notifications',
+        channelDescription: 'Notification channel for basic tests',
+        defaultColor: const Color.fromARGB(255, 234, 236, 93),
+        ledColor: Colors.white,
+      ),
+    ]);
 
     bool isAllowed = await AwesomeNotifications().isNotificationAllowed();
     if (!isAllowed) {
@@ -31,7 +27,11 @@ class NotificationService{
     await AwesomeNotifications().requestPermissionToSendNotifications();
   }
 
-  static Future<void> showNotification(int id, String title, String body) async {
+  static Future<void> showNotification(
+    int id,
+    String title,
+    String body,
+  ) async {
     await AwesomeNotifications().createNotification(
       content: NotificationContent(
         id: id,

@@ -11,6 +11,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Hive.initFlutter();
   await Hive.openBox('local_passes');
+  await Hive.openBox('timer_settings');
 
   try {
     if (Firebase.apps.isEmpty) {

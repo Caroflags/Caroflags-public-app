@@ -7,39 +7,10 @@ import 'package:http/http.dart' as http;
 import 'map.dart';
 import 'restrauantslist.dart';
 import 'randomtext.dart';
-import 'testernotice.dart';
 import 'testpage.dart';
 import 'park_status.dart';
 import 'settings.dart';
-
-class HealthCheckWidget extends StatefulWidget {
-  const HealthCheckWidget({Key? key}) : super(key: key);
-
-  @override
-  State<HealthCheckWidget> createState() => _HealthCheckWidgetState();
-}
-
-class _HealthCheckWidgetState extends State<HealthCheckWidget> {
-  @override
-  Widget build(BuildContext context) {
-    return FutureBuilder<http.Response>(
-      future: http.get(Uri.parse('https://api.caroflags.xyz/health')),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const CircularProgressIndicator();
-        } else if (snapshot.hasError) {
-          return const Text('Error fetching API status.');
-        } else if (snapshot.hasData && snapshot.data!.statusCode == 200) {
-          return const SizedBox.shrink();
-        } else {
-          return Text(
-            'Uh oh! The servers seem to be having some issues right now. Error code: ${snapshot.data?.statusCode ?? 'good lord we dont even know what error code it is'}',
-          );
-        }
-      },
-    );
-  }
-}
+import 'timers.dart';
 
 Future<Map<String, String?>> getUserData() async {
   User? user = FirebaseAuth.instance.currentUser;
@@ -93,6 +64,12 @@ class _RealHomeState extends State<RealHome> {
       'subtitle': 'The map for Carowinds',
       'icon': Icons.map,
       'page': MapScreen(),
+    },
+    {
+      'title': 'Timers',
+      'subtitle': 'Manage your dining and drink cooldowns',
+      'icon': Icons.timer,
+      'page': const TimersScreen(),
     },
   ];
   void _onNavTap(int index) {
@@ -227,7 +204,6 @@ class _RealHomeState extends State<RealHome> {
                       }
                     },
                   ),
-                  const HealthCheckWidget(),
                   Text(randomStatement),
                   const ParkStatus(),
                   const SizedBox(height: 8),
@@ -382,30 +358,6 @@ class _DetailPage extends StatelessWidget {
                         );
                       },
                       child: const Text('Map'),
-                    ),
-
-                    ElevatedButton(
-                      onPressed: () {
-                        // Show the tester notice
-                        showDialog(
-                          context: context,
-                          builder: (context) {
-                            return AlertDialog(
-                              title: Text('Tester Notice'),
-                              content: TesterNotice(),
-                              actions: [
-                                TextButton(
-                                  onPressed: () {
-                                    Navigator.of(context).pop();
-                                  },
-                                  child: Text('Close'),
-                                ),
-                              ],
-                            );
-                          },
-                        );
-                      },
-                      child: const Text('Notice For Testers'),
                     ),
                   ],
                 ),

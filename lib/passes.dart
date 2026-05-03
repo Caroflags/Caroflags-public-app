@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'randomtext.dart';
 import 'scanbarcode.dart';
+import 'timers.dart';
 
 class PassesScreen extends StatefulWidget {
   final String userId;
@@ -83,10 +84,7 @@ class _PassesScreenState extends State<PassesScreen> {
                         value: 'Platinum',
                         child: Text('Platinum'),
                       ),
-                      DropdownMenuItem(
-                        value: 'Fast Lane',
-                        child: Text('Fast Lane'),
-                      ),
+                      DropdownMenuItem(value: 'Pre-K', child: Text('Pre-K')),
                     ],
                     onChanged: (value) {
                       selectedTier = value;
@@ -310,8 +308,8 @@ class _PassesScreenState extends State<PassesScreen> {
                 255,
                 255,
               ); // Platinum/Purple tint
-            case 'Fast Lane':
-              return const Color.fromARGB(255, 209, 244, 54); // Fast Lane tint
+            case 'Pre-K':
+              return const Color.fromARGB(255, 20, 216, 151); // Pre-K tint
             default:
               return Colors.white; // Default if null or unknown
           }
@@ -371,219 +369,238 @@ class _PassesScreenState extends State<PassesScreen> {
                 ),
               ),
               Padding(padding: EdgeInsets.all(16)),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.grey[300],
-                  foregroundColor: Colors.black,
-                ),
-                onPressed: () async {
-                  // Show popup for confirmation
-                  showDialog(
-                    context: context,
-                    builder: (context) {
-                      return AlertDialog(
-                        title: const Text('Delete Pass'),
-                        content: const Text(
-                          'Are you sure you want to delete this pass?',
-                        ),
-                        actions: [
-                          TextButton(
-                            onPressed: () {
-                              Navigator.of(context).pop();
-                            },
-                            child: const Text('Cancel'),
-                          ),
-                          TextButton(
-                            onPressed: () async {
-                              showSnackbar(context, 'PassID: $passId deleted.');
-                              if (_useLocalPasses) {
-                                await Hive.box('local_passes').delete(passId);
-                              } else {
-                                await _firestore
-                                    .collection('users')
-                                    .doc(widget.userId)
-                                    .collection('passes')
-                                    .doc(passId)
-                                    .delete();
-                              }
-                              _cachedPasses.remove(passId);
-                              if (context.mounted) {
-                                setState(() {});
-                              }
-                              if (context.mounted) {
-                                Navigator.of(context).pop();
-                              }
-                            },
-                            child: const Text('Delete'),
-                          ),
-                        ],
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  ElevatedButton(
+                    onPressed: () async {
+                      // Show popup for confirmation
+                      showDialog(
+                        context: context,
+                        builder: (context) {
+                          return AlertDialog(
+                            title: const Text('Delete Pass'),
+                            content: const Text(
+                              'Are you sure you want to delete this pass?',
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () {
+                                  Navigator.of(context).pop();
+                                },
+                                child: const Text('Cancel'),
+                              ),
+                              TextButton(
+                                onPressed: () async {
+                                  showSnackbar(
+                                    context,
+                                    'PassID: $passId deleted.',
+                                  );
+                                  if (_useLocalPasses) {
+                                    await Hive.box(
+                                      'local_passes',
+                                    ).delete(passId);
+                                  } else {
+                                    await _firestore
+                                        .collection('users')
+                                        .doc(widget.userId)
+                                        .collection('passes')
+                                        .doc(passId)
+                                        .delete();
+                                  }
+                                  _cachedPasses.remove(passId);
+                                  if (context.mounted) {
+                                    setState(() {});
+                                  }
+                                  if (context.mounted) {
+                                    Navigator.of(context).pop();
+                                  }
+                                },
+                                child: const Text('Delete'),
+                              ),
+                            ],
+                          );
+                        },
                       );
                     },
-                  );
-                },
-                child: const Text('Delete Pass'),
-              ),
-              // EOL
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.grey[300],
-                  foregroundColor: Colors.black,
-                ),
-                onPressed: () {
-                  final nameController = TextEditingController(text: name);
-                  String? selectedTier = tier;
-                  final idController = TextEditingController(text: id);
+                    child: const Text('Delete Pass'),
+                  ),
 
-                  showDialog(
-                    context: context,
-                    builder: (context) {
-                      return AlertDialog(
-                        title: const Text('Edit Pass'),
-                        content: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            TextField(
-                              controller: nameController,
-                              decoration: const InputDecoration(
-                                labelText: 'Name',
-                              ),
-                            ),
+                  // EOL
+                  Padding(padding: const EdgeInsets.only(right: 16.0)),
 
-                            Padding(
-                              padding: const EdgeInsets.only(bottom: 16.0),
-                            ),
+                  ElevatedButton(
+                    onPressed: () {
+                      final nameController = TextEditingController(text: name);
+                      String? selectedTier = tier;
+                      final idController = TextEditingController(text: id);
 
-                            StatefulBuilder(
-                              builder: (context, unfuckDropdownButton) {
-                                return DropdownButton(
-                                  value: selectedTier,
-                                  isExpanded: true,
-                                  hint: const Text('Select Tier'),
-                                  items: const [
-                                    DropdownMenuItem(
-                                      value: 'Silver',
-                                      child: Text('Silver'),
-                                    ),
-                                    DropdownMenuItem(
-                                      value: 'Gold',
-                                      child: Text('Gold'),
-                                    ),
-                                    DropdownMenuItem(
-                                      value: 'Platinum',
-                                      child: Text('Platinum'),
-                                    ),
-                                    DropdownMenuItem(
-                                      value: 'Fast Lane',
-                                      child: Text('Fast Lane'),
-                                    ),
-                                  ],
-                                  onChanged: (value) {
-                                    selectedTier = value;
-                                    unfuckDropdownButton(() {});
-                                  },
-                                );
-                              },
-                            ),
-
-                            Padding(
-                              padding: const EdgeInsets.only(bottom: 16.0),
-                            ),
-
-                            Row(
+                      showDialog(
+                        context: context,
+                        builder: (context) {
+                          return AlertDialog(
+                            title: const Text('Edit Pass'),
+                            content: Column(
+                              mainAxisSize: MainAxisSize.min,
                               children: [
-                                Expanded(
-                                  child: TextField(
-                                    controller: idController,
-                                    decoration: const InputDecoration(
-                                      labelText: 'Pass Number',
-                                    ),
+                                TextField(
+                                  controller: nameController,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Name',
                                   ),
                                 ),
 
-                                IconButton(
-                                  icon: const Icon(Icons.qr_code_scanner),
-                                  onPressed: () async {
-                                    var status = await Permission.camera
-                                        .request();
-                                    if (status.isGranted) {
-                                      if (!context.mounted) return;
-                                      final result = await Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) =>
-                                              const BarcodeScannerScreen(
-                                                returnResult: true,
-                                              ),
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 16.0),
+                                ),
+
+                                StatefulBuilder(
+                                  builder: (context, unfuckDropdownButton) {
+                                    return DropdownButton(
+                                      value: selectedTier,
+                                      isExpanded: true,
+                                      hint: const Text('Select Tier'),
+                                      items: const [
+                                        DropdownMenuItem(
+                                          value: 'Silver',
+                                          child: Text('Silver'),
                                         ),
-                                      );
-                                      if (result != null && result is String) {
-                                        idController.text = result;
-                                      }
-                                    } else {
-                                      if (!context.mounted) return;
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        const SnackBar(
-                                          content: Text(
-                                            'Camera permission is required to scan your pass.',
-                                          ),
+                                        DropdownMenuItem(
+                                          value: 'Gold',
+                                          child: Text('Gold'),
                                         ),
-                                      );
-                                    }
+                                        DropdownMenuItem(
+                                          value: 'Platinum',
+                                          child: Text('Platinum'),
+                                        ),
+                                        DropdownMenuItem(
+                                          value: 'Fast Lane',
+                                          child: Text('Fast Lane'),
+                                        ),
+                                        DropdownMenuItem(
+                                          value: 'Pre-K',
+                                          child: Text('Pre-K'),
+                                        ),
+                                      ],
+                                      onChanged: (value) {
+                                        selectedTier = value;
+                                        unfuckDropdownButton(() {});
+                                      },
+                                    );
                                   },
+                                ),
+
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 16.0),
+                                ),
+
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: TextField(
+                                        controller: idController,
+                                        decoration: const InputDecoration(
+                                          labelText: 'Pass Number',
+                                        ),
+                                      ),
+                                    ),
+
+                                    IconButton(
+                                      icon: const Icon(Icons.qr_code_scanner),
+                                      onPressed: () async {
+                                        var status = await Permission.camera
+                                            .request();
+                                        if (status.isGranted) {
+                                          if (!context.mounted) return;
+                                          final result = await Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (context) =>
+                                                  const BarcodeScannerScreen(
+                                                    returnResult: true,
+                                                  ),
+                                            ),
+                                          );
+                                          if (result != null &&
+                                              result is String) {
+                                            idController.text = result;
+                                          }
+                                        } else {
+                                          if (!context.mounted) return;
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            const SnackBar(
+                                              content: Text(
+                                                'Camera permission is required to scan your pass.',
+                                              ),
+                                            ),
+                                          );
+                                        }
+                                      },
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
-                          ],
-                        ),
-                        actions: [
-                          TextButton(
-                            onPressed: () {
-                              Navigator.of(context).pop();
-                            },
-                            child: const Text('Cancel'),
-                          ),
-                          TextButton(
-                            onPressed: () async {
-                              showSnackbar(
-                                context,
-                                'Changes Saved for $passId',
-                              );
-                              if (_useLocalPasses) {
-                                await Hive.box('local_passes').put(passId, {
-                                  'name': nameController.text,
-                                  'tier': selectedTier,
-                                  'id': idController.text,
-                                });
-                              } else {
-                                await _firestore
-                                    .collection('users')
-                                    .doc(widget.userId)
-                                    .collection('passes')
-                                    .doc(passId)
-                                    .update({
+                            actions: [
+                              TextButton(
+                                onPressed: () {
+                                  Navigator.of(context).pop();
+                                },
+                                child: const Text('Cancel'),
+                              ),
+                              TextButton(
+                                onPressed: () async {
+                                  showSnackbar(
+                                    context,
+                                    'Changes Saved for $passId',
+                                  );
+                                  if (_useLocalPasses) {
+                                    await Hive.box('local_passes').put(passId, {
                                       'name': nameController.text,
                                       'tier': selectedTier,
                                       'id': idController.text,
                                     });
-                              }
-                              _cachedPasses.remove(passId);
-                              if (context.mounted) {
-                                setState(() {});
-                              }
-                              if (context.mounted) {
-                                Navigator.of(context).pop();
-                              }
-                            },
-                            child: const Text('Save Changes'),
-                          ),
-                        ],
+                                  } else {
+                                    await _firestore
+                                        .collection('users')
+                                        .doc(widget.userId)
+                                        .collection('passes')
+                                        .doc(passId)
+                                        .update({
+                                          'name': nameController.text,
+                                          'tier': selectedTier,
+                                          'id': idController.text,
+                                        });
+                                  }
+                                  _cachedPasses.remove(passId);
+                                  if (context.mounted) {
+                                    setState(() {});
+                                  }
+                                  if (context.mounted) {
+                                    Navigator.of(context).pop();
+                                  }
+                                },
+                                child: const Text('Save Changes'),
+                              ),
+                            ],
+                          );
+                        },
                       );
                     },
+                    child: const Text('Edit Pass'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const TimersScreen()),
                   );
                 },
-                child: const Text('Edit Pass'),
+                child: const Text('Set Timer'),
               ),
             ],
           ),

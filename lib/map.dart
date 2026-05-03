@@ -117,11 +117,14 @@ class MapScreen extends StatefulWidget {
   State<MapScreen> createState() => _MapScreenState();
 }
 
-class _MapScreenState extends State<MapScreen> {
+class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   Style? _style;
   String? _styleError;
 
   LatLng? userLocation;
+  AnimationController? _locationAnimController;
+  Animation<double>? _latAnimation;
+  Animation<double>? _lngAnimation;
   final MapController mapController = MapController();
 
   // Filter settings
@@ -290,16 +293,49 @@ class _MapScreenState extends State<MapScreen> {
     _positionStreamSubscription =
         Geolocator.getPositionStream(
           locationSettings: const LocationSettings(
-            accuracy: LocationAccuracy.high,
-            distanceFilter: 5,
+            accuracy: LocationAccuracy.bestForNavigation,
+            distanceFilter: 1,
           ),
         ).listen((Position position) {
           if (mounted) {
-            setState(() {
-              userLocation = LatLng(position.latitude, position.longitude);
-            });
+            _animateToNewLocation(LatLng(position.latitude, position.longitude));
           }
         });
+  }
+
+  void _animateToNewLocation(LatLng newLocation) {
+    if (userLocation == null) {
+      setState(() {
+        userLocation = newLocation;
+      });
+      return;
+    }
+
+    _locationAnimController?.dispose();
+    _locationAnimController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    );
+
+    _latAnimation = Tween<double>(
+      begin: userLocation!.latitude,
+      end: newLocation.latitude,
+    ).animate(CurvedAnimation(parent: _locationAnimController!, curve: Curves.linear));
+
+    _lngAnimation = Tween<double>(
+      begin: userLocation!.longitude,
+      end: newLocation.longitude,
+    ).animate(CurvedAnimation(parent: _locationAnimController!, curve: Curves.linear));
+
+    _locationAnimController!.addListener(() {
+      if (mounted) {
+        setState(() {
+          userLocation = LatLng(_latAnimation!.value, _lngAnimation!.value);
+        });
+      }
+    });
+
+    _locationAnimController!.forward();
   }
 
   Future<void> _loadFilters() async {
@@ -365,6 +401,7 @@ class _MapScreenState extends State<MapScreen> {
   @override
   void dispose() {
     _positionStreamSubscription?.cancel();
+    _locationAnimController?.dispose();
     super.dispose();
   }
 

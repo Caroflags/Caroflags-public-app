@@ -260,51 +260,69 @@ class _LoginPageState extends State<LoginPage> {
                 ],
               ),
             ),
+            Padding(padding: const EdgeInsets.only(bottom: 16.0)),
 
-            // uncultured container
-            Container(
-              margin: const EdgeInsets.only(top: 40.0),
-              child: Column(
-                children: [
-                  const Text(
-                    'Uncultured?',
-                    style: TextStyle(fontSize: 16, color: Colors.grey),
-                  ),
-                  const SizedBox(height: 8),
-                  ElevatedButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const SignupPage(),
-                        ),
-                      );
-                    },
-                    child: const Text('Signup'),
-                  ),
-                ],
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Padding(padding: const EdgeInsets.only(right: 16.0)),
+                TextButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const SignupPage(),
+                      ),
+                    );
+                  },
+                  child: const Text('Signup'),
+                ),
+                Padding(padding: const EdgeInsets.only(left: 16.0)),
+
+                TextButton(
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      builder: (BuildContext context) {
+                        return AlertDialog(
+                          title: const Text('Just so you know...'),
+                          content: const Text(
+                            'Your passes will be saved to your device, but not to the cloud. If you delete the app, you\'ll lose your passes, so keep a copy of your passes just in case!',
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () {
+                                Navigator.of(context).pop();
+                                FirebaseAuth.instance.signInAnonymously();
+                                Navigator.pushReplacement(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const RealHome(),
+                                  ),
+                                );
+                              },
+                              child: const Text('I Understand.'),
+                            ),
+                          ],
+                        );
+                      },
+                    );
+                  },
+                  child: const Text('Login Anonymously'),
+                ),
+              ],
             ),
 
-            Container(
-              margin: const EdgeInsets.only(top: 40.0),
-              child: Column(
-                children: [
-                  ElevatedButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => PrivacyPolicyPage(),
-                        ),
-                      );
-                    },
-                    child: const Text('Privacy Policy'),
-                  ),
+            Padding(padding: const EdgeInsets.only(bottom: 32.0)),
 
-                  const SizedBox(height: 8),
-                ],
-              ),
+            TextButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => PrivacyPolicyPage()),
+                );
+              },
+              child: const Text('Privacy Policy'),
             ),
           ],
         ),

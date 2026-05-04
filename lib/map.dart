@@ -179,10 +179,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('Parking spot saved'),
-          action: SnackBarAction(
-            label: 'Undo',
-            onPressed: _removeParking,
-          ),
+          action: SnackBarAction(label: 'Undo', onPressed: _removeParking),
         ),
       );
     }
@@ -200,53 +197,60 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     });
   }
 
-  List<Map<String, dynamic>> rides = [
-    {'name': 'Fury 325', 'lat': 35.10548, 'lng': -80.94246},
-    {'name': 'Afterburn', 'lat': 35.100278, 'lng': -80.940833},
-    {'name': 'Copperhead Strike', 'lat': 35.101111, 'lng': -80.942500},
-    {'name': 'Thunder Striker', 'lat': 35.103056, 'lng': -80.939444},
-    {'name': 'Carolina Cyclone', 'lat': 35.104167, 'lng': -80.943611},
-    {'name': 'Carolina Goldrusher', 'lat': 35.103224, 'lng': -80.942918},
-    {'name': 'Hurler', 'lat': 35.105244, 'lng': -80.943719},
-    {'name': 'Vortex', 'lat': 35.103611, 'lng': -80.941667},
-    {'name': 'Richochet', 'lat': 35.1042, 'lng': -80.9428},
-    {'name': 'The Flying Cobras', 'lat': 35.102704, 'lng': -80.942792},
-    {'name': 'Kiddy Hawk', 'lat': 35.10200, 'lng': -80.94090},
-    {'name': 'Wilderness Run', 'lat': 35.101111, 'lng': -80.938889},
-    {'name': 'Woodstock Express', 'lat': 35.101040, 'lng': -80.939422},
-    {'name': 'Ripcord', 'lat': 35.10240, 'lng': -80.94020},
-    {'name': 'Windseeker', 'lat': 35.1021, 'lng': -80.941347},
-    {'name': 'Electro-Spin', 'lat': 35.1023, 'lng': -80.9435},
-    {'name': 'Zephyr', 'lat': 35.102088, 'lng': -80.943108},
-    {'name': "Rock 'N' Roller", 'lat': 35.102941, 'lng': -80.943800},
-    {'name': 'Do-Si-Do', 'lat': 35.102483, 'lng': -80.943146},
-    {'name': 'Mountain Gliders', 'lat': 35.101300, 'lng': -80.942400},
-    {'name': 'Kaleidoscope', 'lat': 35.104600, 'lng': -80.942961},
-    {'name': "Snoopy’s Racing Railway", 'lat': 35.101916, 'lng': -80.939302},
-    {
-      'name': "Charlie Brown’s River Raft Blast",
-      'lat': 35.101546,
-      'lng': -80.938632,
-    },
-    {'name': 'The Grand Carousel', 'lat': 35.104179, 'lng': -80.942049},
-    {'name': 'Slingshot', 'lat': 35.103893, 'lng': -80.942077},
-    {'name': 'Boo Blasters on Boo Hill', 'lat': 35.1014747, 'lng': -80.9415680},
-    {'name': 'Hover & Dodge', 'lat': 35.101003, 'lng': -80.942198},
-    {'name': 'Flying Ace Balloon Race', 'lat': 35.101754, 'lng': -80.939895},
-    {'name': "Snoopy vs. Red Baron", 'lat': 35.101351, 'lng': -80.940088},
-    {'name': "Pig Pen's Mud Buggies", 'lat': 35.101275, 'lng': -80.939611},
-    {'name': 'PEANUTS Pirates', 'lat': 35.1017591, 'lng': -80.9390428},
-    {'name': 'Woodstock Whirlybirds', 'lat': 35.1017883, 'lng': -80.9387942},
-    {'name': 'Air racers', 'lat': 35.099838, 'lng': -80.941735},
-    {'name': 'Wind star', 'lat': 35.100966290491336, 'lng': -80.94158331712126},
-    {'name': 'Gear Spin', 'lat': 35.10073497987552, 'lng': -80.94195569566024},
-    {'name': 'Gyro Force', 'lat': 35.10038704333868, 'lng': -80.94227356716658},
-    {
-      'name': 'The airwalker',
-      'lat': 35.10024387616424,
-      'lng': -80.94160983927625,
-    },
-  ];
+  List<Map<String, dynamic>> rides = [];
+
+  Future<void> _loadRides() async {
+    final prefs = await SharedPreferences.getInstance();
+    
+    final cachedRidesStr = prefs.getString('cached_rides');
+    final cacheDateStr = prefs.getString('cached_rides_date');
+    
+    if (cachedRidesStr != null && cacheDateStr != null) {
+      final cacheDate = DateTime.tryParse(cacheDateStr);
+      if (cacheDate != null && DateTime.now().difference(cacheDate).inDays < 30) {
+        try {
+          final List<dynamic> decodedCache = json.decode(cachedRidesStr);
+          final List<Map<String, dynamic>> cachedRides = decodedCache.map((e) => Map<String, dynamic>.from(e)).toList();
+          if (mounted) {
+            setState(() {
+              rides = cachedRides;
+            });
+          }
+          return;
+        } catch (e) {
+          // ignore: avoid_print
+          print('Error parsing cached rides: $e');
+        }
+      }
+    }
+    
+    try {
+      final response = await http.get(Uri.parse('https://api.caroflags.xyz/allrides'));
+      if (response.statusCode == 200) {
+        final List<dynamic> jsonResponse = json.decode(response.body);
+        final List<Map<String, dynamic>> fetchedRides = jsonResponse.map((ride) {
+          final coords = ride['coordinates'] as Map<String, dynamic>? ?? {};
+          return {
+            'name': ride['name'] ?? 'Unknown Ride',
+            'lat': coords['lat'] ?? 0.0,
+            'lng': coords['lng'] ?? 0.0,
+          };
+        }).toList();
+        
+        if (mounted) {
+          setState(() {
+            rides = fetchedRides;
+          });
+        }
+        
+        await prefs.setString('cached_rides', json.encode(fetchedRides));
+        await prefs.setString('cached_rides_date', DateTime.now().toIso8601String());
+      }
+    } catch (e) {
+      // ignore: avoid_print
+      print('Error fetching rides: $e');
+    }
+  }
 
   @override
   void initState() {
@@ -255,6 +259,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
     _loadFilters();
     _loadStyle();
     _loadParking();
+    _loadRides();
   }
 
   Future<void> _checkLocationPermission() async {
@@ -298,7 +303,9 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
           ),
         ).listen((Position position) {
           if (mounted) {
-            _animateToNewLocation(LatLng(position.latitude, position.longitude));
+            _animateToNewLocation(
+              LatLng(position.latitude, position.longitude),
+            );
           }
         });
   }
@@ -317,15 +324,27 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
       duration: const Duration(milliseconds: 1000),
     );
 
-    _latAnimation = Tween<double>(
-      begin: userLocation!.latitude,
-      end: newLocation.latitude,
-    ).animate(CurvedAnimation(parent: _locationAnimController!, curve: Curves.linear));
+    _latAnimation =
+        Tween<double>(
+          begin: userLocation!.latitude,
+          end: newLocation.latitude,
+        ).animate(
+          CurvedAnimation(
+            parent: _locationAnimController!,
+            curve: Curves.linear,
+          ),
+        );
 
-    _lngAnimation = Tween<double>(
-      begin: userLocation!.longitude,
-      end: newLocation.longitude,
-    ).animate(CurvedAnimation(parent: _locationAnimController!, curve: Curves.linear));
+    _lngAnimation =
+        Tween<double>(
+          begin: userLocation!.longitude,
+          end: newLocation.longitude,
+        ).animate(
+          CurvedAnimation(
+            parent: _locationAnimController!,
+            curve: Curves.linear,
+          ),
+        );
 
     _locationAnimController!.addListener(() {
       if (mounted) {
@@ -538,11 +557,15 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                               children: [
                                 Builder(
                                   builder: (context) {
-                                    String displayTime = 'Parked at $parkingTime';
+                                    String displayTime =
+                                        'Parked at $parkingTime';
                                     if (parkingTime != null) {
                                       try {
-                                        final parsedTime = DateTime.parse(parkingTime!);
-                                        displayTime = 'Parked ${timeago.format(parsedTime, locale: 'en_short')} ago';
+                                        final parsedTime = DateTime.parse(
+                                          parkingTime!,
+                                        );
+                                        displayTime =
+                                            'Parked ${timeago.format(parsedTime, locale: 'en_short')} ago';
                                       } catch (e) {
                                         // Fallback if not an ISO string
                                       }
@@ -554,7 +577,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                                         fontSize: 12,
                                       ),
                                     );
-                                  }
+                                  },
                                 ),
                                 const SizedBox(height: 4),
                                 ElevatedButton(

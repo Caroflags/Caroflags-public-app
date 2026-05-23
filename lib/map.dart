@@ -13,7 +13,6 @@ import 'dart:convert';
 import 'gzipped_tile_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
-import 'package:intl/intl.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
 // Data Lists

@@ -37,31 +37,7 @@ final List<String> _nopasses = [
   "You know historians are going to wonder why you didnt add a pass right?",
 ];
 
-final List<String> _parkClosed = [
-  'The park is closed today, maybe tomorrow?',
-  'Awwwwh, the park is closed',
-  'Park closed ):',
-  'i hoped they aren\'t closed for the season',
-  'Guess we are going to walmart instead',
-  'park closed, this will affect fishing season',
-  'damn it\'s closed',
-  'Is carowinds really closed?',
-  'I mean, it is closed',
-  'AWHHHHH, It\'s closed!',
-];
 
-final List<String> _parkOpen = [
-  'The park is open today!',
-  'YAYYYYYY, the park is open',
-  'Park open (:',
-  'i hoped they aren\'t closed for the season',
-  'Guess we are going to the park!',
-  'park open, this will NOT affect fishing season',
-  'damn it\'s open!',
-  'Is carowinds really open?',
-  'it is open!',
-  'AHHH, It\'s open!',
-];
 
 final String randomStatement =
     _statements[Random().nextInt(_statements.length)];

@@ -3,7 +3,6 @@ import 'package:firebase_auth/firebase_auth.dart'; // Import Firebase Authentica
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'login.dart';
 import 'home.dart';
-import 'main.dart';
 // test commit thingy
 
 void main() {

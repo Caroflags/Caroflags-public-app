@@ -5,6 +5,8 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_wear_os_connectivity/flutter_wear_os_connectivity.dart';
+import 'dart:convert';
 import 'randomtext.dart';
 import 'scanbarcode.dart';
 import 'timers.dart';
@@ -21,6 +23,9 @@ class PassesScreen extends StatefulWidget {
 class _PassesScreenState extends State<PassesScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final Map<String, dynamic> _cachedPasses = {}; // Cache for passes
+  
+  final FlutterWearOsConnectivity _wearOsConnectivity = FlutterWearOsConnectivity();
+  bool _wearConnectivityInitialized = false;
 
   bool _useLocalPasses = false;
   bool _isLoadingPrefs = true;
@@ -29,6 +34,47 @@ class _PassesScreenState extends State<PassesScreen> {
   void initState() {
     super.initState();
     _loadPrefs();
+    _initWearConnectivity();
+  }
+
+  Future<void> _initWearConnectivity() async {
+    try {
+      await _wearOsConnectivity.configureWearableAPI();
+      if (mounted) {
+        setState(() {
+          _wearConnectivityInitialized = true;
+        });
+      }
+    } catch (e) {
+      debugPrint("Failed to configure wearable API: $e");
+    }
+  }
+
+  void _syncPassesToWatch() async {
+    if (!_wearConnectivityInitialized) return;
+    
+    final passesList = _cachedPasses.values.map((p) {
+      return {
+        'name': p['name'],
+        'barcode': p['id'],
+        'tier': p['tier'],
+      };
+    }).toList();
+    
+    final passesJson = jsonEncode(passesList);
+    
+    try {
+      await _wearOsConnectivity.syncData(
+        path: '/passes',
+        data: {
+          'passes_json': passesJson, 
+          'timestamp': DateTime.now().millisecondsSinceEpoch
+        },
+      );
+      debugPrint("Successfully synced passes to watch!");
+    } catch (e) {
+      debugPrint("Failed to sync passes to watch: $e");
+    }
   }
 
   Future<void> _loadPrefs() async {
@@ -52,7 +98,6 @@ class _PassesScreenState extends State<PassesScreen> {
   Future<void> _addPass() async {
     final nameController = TextEditingController();
     final idController = TextEditingController();
-    final tiercontroller = TextEditingController();
     String? selectedTier;
 
     await showDialog(
@@ -239,6 +284,10 @@ class _PassesScreenState extends State<PassesScreen> {
           };
         }
 
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _syncPassesToWatch();
+        });
+
         return _buildPassesCarousel();
       },
     );
@@ -269,6 +318,10 @@ class _PassesScreenState extends State<PassesScreen> {
         for (var pass in passes) {
           _cachedPasses[pass.id] = pass.data();
         }
+
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _syncPassesToWatch();
+        });
 
         return _buildPassesCarousel();
       },

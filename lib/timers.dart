@@ -315,7 +315,7 @@ class ArchPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paintBg = Paint()
-      ..color = color.withOpacity(0.2)
+      ..color = color.withValues(alpha: 0.2)
       ..strokeWidth = 12
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;

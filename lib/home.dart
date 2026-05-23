@@ -5,7 +5,6 @@ import 'login.dart';
 import 'passes.dart';
 import 'package:http/http.dart' as http;
 import 'map.dart';
-import 'restrauantslist.dart';
 import 'randomtext.dart';
 import 'testpage.dart';
 import 'park_status.dart';
@@ -273,99 +272,3 @@ class _RealHomeState extends State<RealHome> {
   }
 }
 
-class _DetailPage extends StatelessWidget {
-  final Map<String, String> item;
-  const _DetailPage({Key? key, required this.item}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(item['title']!)),
-
-      body: Center(
-        child: Column(
-          children: [
-            FutureBuilder<http.Response>(
-              future: http.get(Uri.parse('https://api.caroflags.xyz/health')),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const CircularProgressIndicator();
-                } else if (snapshot.hasError) {
-                  return const Text('Error fetching API status.');
-                } else if (snapshot.hasData &&
-                    snapshot.data!.statusCode == 200) {
-                  return const SizedBox.shrink();
-                } else {
-                  return Text(
-                    'Uh oh! The servers seem to be having some issues right now. Error code: ${snapshot.data?.statusCode ?? 'good lord we dont even know what error code it is'}',
-                  );
-                }
-              },
-            ),
-
-            Text('$randomStatement'),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: SizedBox(
-                width: double.infinity,
-                child: Column(
-                  children: [
-                    ElevatedButton(
-                      onPressed: () async {
-                        // Sign out the user when the button is pressed
-                        await FirebaseAuth.instance.signOut();
-                        // Navigate back to the login page
-                        if (!context.mounted) return;
-                        Navigator.of(context).pushReplacement(
-                          MaterialPageRoute(
-                            builder: (context) => const LoginPage(),
-                          ),
-                        );
-                      },
-                      child: const Text('Logout ):'),
-                    ),
-                    ElevatedButton(
-                      onPressed: () {
-                        // Navigate to the passes page
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (context) => PassesScreen(
-                              userId:
-                                  FirebaseAuth.instance.currentUser?.uid ?? '',
-                            ),
-                          ),
-                        );
-                      },
-                      child: const Text('Wallet'),
-                    ),
-
-                    ElevatedButton(
-                      onPressed: () {
-                        // Navigate to the passes page
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (context) => const RestaurantsPage(),
-                          ),
-                        );
-                      },
-                      child: const Text('Restaurants'),
-                    ),
-                    ElevatedButton(
-                      onPressed: () {
-                        // Navigate to the timers page
-                        Navigator.of(context).push(
-                          MaterialPageRoute(builder: (context) => MapScreen()),
-                        );
-                      },
-                      child: const Text('Map'),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}

@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'dart:io';
+import 'package:device_info_plus/device_info_plus.dart';
+import 'package:flutter/services.dart';
 import 'home.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -6,30 +9,54 @@ import 'login.dart';
 import 'notifications.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'firebase_options.dart';
+import 'wear_app.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Hive.initFlutter();
-  await Hive.openBox('local_passes');
-  await Hive.openBox('timer_settings');
 
-  try {
-    if (Firebase.apps.isEmpty) {
-      await Firebase.initializeApp(
-        options: DefaultFirebaseOptions.currentPlatform,
-      );
+  // 1. Determine if this is the wear/watch flavor or a Wear OS device
+  bool isWearOS = appFlavor == 'wear' || appFlavor == 'watch';
+  if (!isWearOS && Platform.isAndroid) {
+    try {
+      final androidInfo = await DeviceInfoPlugin().androidInfo;
+      isWearOS = androidInfo.systemFeatures.contains('android.hardware.type.watch');
+    } catch (e) {
+      debugPrint("Failed to get device info: $e");
     }
-  } catch (e) {
-    debugPrint("Firebase was already initialized: $e");
   }
 
-  // 3. Initialize Notifications
-  await NotificationService.initializeNotifications();
+  // 2. Initialize Hive only for phone/tablet build
+  if (!isWearOS) {
+    await Hive.initFlutter();
+    await Hive.openBox('local_passes');
+    await Hive.openBox('timer_settings');
+  }
 
-  final user = FirebaseAuth.instance.currentUser;
-  debugPrint(user != null ? 'Current user: ${user.uid}' : 'No user logged in');
+  // 3. Initialize Firebase only for phone/tablet build
+  if (!isWearOS) {
+    try {
+      if (Firebase.apps.isEmpty) {
+        await Firebase.initializeApp(
+          options: DefaultFirebaseOptions.currentPlatform,
+        );
+      }
+    } catch (e) {
+      debugPrint("Firebase was already initialized: $e");
+    }
+  }
 
-  runApp(const MyApp());
+  // 4. Initialize Notifications only for phone/tablet build
+  if (!isWearOS) {
+    await NotificationService.initializeNotifications();
+  }
+
+  // 5. Check Firebase Auth only for phone/tablet build
+  if (!isWearOS) {
+    final user = FirebaseAuth.instance.currentUser;
+    debugPrint(user != null ? 'Current user: ${user.uid}' : 'No user logged in');
+  }
+
+  runApp(isWearOS ? const WearApp() : const MyApp());
 }
 
 class MyApp extends StatelessWidget {

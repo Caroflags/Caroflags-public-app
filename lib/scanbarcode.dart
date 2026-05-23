@@ -15,9 +15,6 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
     detectionSpeed: DetectionSpeed.unrestricted,
   );
 
-  String? _lastScannedCode;
-  int _conscount = 0;
-  final int _consthreshold = 10;
 
   @override
   void dispose() {
@@ -25,34 +22,9 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
     super.dispose();
   }
 
-  void _handleDetection(Barcode barcode) {
-    if (barcode.rawValue == _lastScannedCode) {
-      _conscount++;
-    } else {
-      _lastScannedCode = barcode.rawValue;
-      _conscount = 1;
-    }
-
-    if (_conscount >= _consthreshold) {
-      _isProcessing = true;
-
-      if (!mounted) return;
-
-      if (widget.returnResult) {
-        Navigator.pop(context, _lastScannedCode);
-      } else {
-        _conscount = 0;
-        _showResultDialog(_lastScannedCode!);
-      }
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
-    // Define the scan window size
-    final double scanWindowWidth = 380.0;
-    final double scanWindowHeight = 100.0;
-
     return Scaffold(
       appBar: AppBar(title: const Text('Scan Barcode')),
       body: Stack(
@@ -140,7 +112,7 @@ class ScannerOverlayPainter extends CustomPainter {
       );
 
     final backgroundPaint = Paint()
-      ..color = Colors.black.withOpacity(0.5)
+      ..color = Colors.black.withValues(alpha: 0.5)
       ..style = PaintingStyle.fill;
     final backgroundWithCutout = Path.combine(
       PathOperation.difference,

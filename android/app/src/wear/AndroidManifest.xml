@@ -1,0 +1,18 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.caroflags.caroflags">
+    <uses-feature android:name="android.hardware.type.watch" android:required="true" />
+
+    <application>
+        <!-- Required by Google Play for all Wear OS apps -->
+        <meta-data
+            android:name="com.google.android.wearable.standalone"
+            android:value="false" />
+        
+        <activity android:name=".MainActivity">
+            <meta-data
+                android:name="io.flutter.embedding.android.SplashScreenDrawable"
+                xmlns:tools="http://schemas.android.com/tools"
+                tools:node="remove" />
+        </activity>
+    </application>
+</manifest>

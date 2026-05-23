@@ -1,7 +1,6 @@
 import 'dart:typed_data';
 
-import 'package:http/http.dart'
-    as http; // Keeping http for type reference if needed, though Client usage removed
+
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 
 import 'package:vector_map_tiles/vector_map_tiles.dart';

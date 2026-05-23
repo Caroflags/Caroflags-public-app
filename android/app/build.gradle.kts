@@ -18,7 +18,7 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-    namespace = "com.caroflags.caroflags" // <--- VERIFY THIS MATCHES YOUR CODE
+    namespace = "com.caroflags.caroflags"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -32,49 +32,62 @@ android {
         jvmTarget = "21"
     }
 
+    buildFeatures {
+        buildConfig = true
+    }
+
     sourceSets {
         getByName("main").java.srcDirs("src/main/kotlin")
     }
     defaultConfig {
-        applicationId = "com.caroflags.caroflags" // <--- VERIFY THIS MATCHES YOUR CODE
+        applicationId = "com.caroflags.caroflags"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
-        // If you ever get a "Multidex" error next, uncomment the line below:
-        // multiDexEnabled = true
     }
 
-    val keystoreProperties = Properties().apply {
-        load(FileInputStream(rootProject.file("key.properties")))
-    }
-
-    android {
-        signingConfigs {
-            create("release") {
-                storeFile = file(keystoreProperties.getProperty("storeFile"))
-                storePassword = keystoreProperties.getProperty("storePassword")
-                keyAlias = keystoreProperties.getProperty("keyAlias")
-                keyPassword = keystoreProperties.getProperty("keyPassword")
-            }
+    flavorDimensions += "type"
+    productFlavors {
+        create("phone") {
+            dimension = "type"
+            minSdk = flutter.minSdkVersion
+        }
+        create("wear") {
+            dimension = "type"
+            minSdk = 25
+            multiDexEnabled = true
         }
     }
 
+    signingConfigs {
+        create("release") {
+            val props = Properties().apply {
+                load(FileInputStream(rootProject.file("key.properties")))
+            }
+            storeFile = file(props.getProperty("storeFile"))
+            storePassword = props.getProperty("storePassword")
+            keyAlias = props.getProperty("keyAlias")
+            keyPassword = props.getProperty("keyPassword")
+        }
+    }
 
     buildTypes {
         getByName("release") {
             signingConfig = signingConfigs.getByName("release")
-            isMinifyEnabled = false
-            isShrinkResources = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
+
 }
 
 flutter {
     source = "../.."
 }
 
-// 👇 FIX: This downloads the tool to handle the new Java features
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+    implementation("androidx.core:core-splashscreen:1.0.1")
 }

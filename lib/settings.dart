@@ -15,6 +15,7 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage> {
   bool _useLocalPasses = false;
   bool _isAnonymous = false;
+  bool _changescreenbrightness = true;
 
   @override
   void initState() {
@@ -25,6 +26,7 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _loadSettings() async {
     final user = FirebaseAuth.instance.currentUser;
     _isAnonymous = user?.isAnonymous ?? false;
+    final settingsbox = Hive.box('settings');
 
     final prefs = await SharedPreferences.getInstance();
     if (_isAnonymous) {
@@ -40,6 +42,13 @@ class _SettingsPageState extends State<SettingsPage> {
           _useLocalPasses = prefs.getBool('use_local_passes') ?? false;
         });
       }
+    }
+
+    if (mounted) {
+      setState(() {
+        _changescreenbrightness =
+            settingsbox.get('change_screen_brightness') ?? true;
+      });
     }
   }
 
@@ -200,6 +209,20 @@ class _SettingsPageState extends State<SettingsPage> {
                 : const Text('Store passes locally instead of in the cloud.'),
             value: _useLocalPasses,
             onChanged: _isAnonymous ? null : _toggleLocalPasses,
+          ),
+          const SizedBox(height: 32),
+          SwitchListTile(
+            title: const Text('Change Screen Brightness During Passes'),
+            subtitle: const Text(
+              "Have your phone change it's screen brightness while you're scanning your passes",
+            ),
+            value: _changescreenbrightness,
+            onChanged: (val) {
+              setState(() {
+                _changescreenbrightness = val;
+                Hive.box('settings').put("change_screen_brightness", val);
+              });
+            },
           ),
           const SizedBox(height: 32),
           ElevatedButton(

@@ -1,0 +1,32 @@
+final List<Map<String, dynamic>> restaurants = [
+  {'name': "Papa Luigi's", 'lat': 35.1045189, 'lng': -80.9418155},
+  {'name': 'Fair Fries', 'lat': 35.1031156, 'lng': -80.9434888},
+  {'name': 'Blue Ridge Fixins', 'lat': 35.1017171, 'lng': -80.9419654},
+  {'name': 'Fry Shack', 'lat': 35.1011767, 'lng': -80.9418011},
+  {
+    'name': "Leonardo's Hometown Italian Food",
+    'lat': 35.1012808,
+    'lng': -80.9411816,
+  },
+  {'name': 'Beach Bites', 'lat': 35.1014872, 'lng': -80.9457156},
+  {
+    'name': "Chickie's & Pete's Sports Grill",
+    'lat': 35.1034636,
+    'lng': -80.9433007,
+  },
+  {'name': 'Cinnabon', 'lat': 35.1040035, 'lng': -80.9400207},
+  {'name': 'Harmony Hall Marketplace', 'lat': 35.1025851, 'lng': -80.9395776},
+  {'name': "Auntie Anne's", 'lat': 35.1037222, 'lng': -80.9403829},
+  {'name': 'Burrito Café', 'lat': 35.1038817, 'lng': -80.9407841},
+  {'name': 'Panda Express', 'lat': 35.1018637, 'lng': -80.9403047},
+  {'name': 'Camp Cookout', 'lat': 35.1015212, 'lng': -80.9401607},
+  {'name': 'Juke Box Diner', 'lat': 35.10522, 'lng': -80.9430431},
+  {'name': 'Harbour House', 'lat': 35.1004664, 'lng': -80.9464406},
+  {'name': "Sharky's Grille", 'lat': 35.1014476, 'lng': -80.9442738},
+  {
+    'name': 'South Gate Drinks and Snack',
+    'lat': 35.1016757,
+    'lng': -80.9415221,
+  },
+  {'name': 'Blue Ridge Country Kitchen', 'lat': 35.1022744, 'lng': -80.9425301},
+];

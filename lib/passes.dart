@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -10,6 +11,7 @@ import 'dart:convert';
 import 'randomtext.dart';
 import 'scanbarcode.dart';
 import 'timers.dart';
+import 'package:screen_brightness/screen_brightness.dart';
 
 class PassesScreen extends StatefulWidget {
   final String userId;
@@ -23,8 +25,9 @@ class PassesScreen extends StatefulWidget {
 class _PassesScreenState extends State<PassesScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final Map<String, dynamic> _cachedPasses = {}; // Cache for passes
-  
-  final FlutterWearOsConnectivity _wearOsConnectivity = FlutterWearOsConnectivity();
+
+  final FlutterWearOsConnectivity _wearOsConnectivity =
+      FlutterWearOsConnectivity();
   bool _wearConnectivityInitialized = false;
 
   bool _useLocalPasses = false;
@@ -35,6 +38,11 @@ class _PassesScreenState extends State<PassesScreen> {
     super.initState();
     _loadPrefs();
     _initWearConnectivity();
+    try {
+      ScreenBrightness().setApplicationScreenBrightness(1.00);
+    } catch (e) {
+      debugPrint("Lol didnt work: $e");
+    }
   }
 
   Future<void> _initWearConnectivity() async {
@@ -52,23 +60,19 @@ class _PassesScreenState extends State<PassesScreen> {
 
   void _syncPassesToWatch() async {
     if (!_wearConnectivityInitialized) return;
-    
+
     final passesList = _cachedPasses.values.map((p) {
-      return {
-        'name': p['name'],
-        'barcode': p['id'],
-        'tier': p['tier'],
-      };
+      return {'name': p['name'], 'barcode': p['id'], 'tier': p['tier']};
     }).toList();
-    
+
     final passesJson = jsonEncode(passesList);
-    
+
     try {
       await _wearOsConnectivity.syncData(
         path: '/passes',
         data: {
-          'passes_json': passesJson, 
-          'timestamp': DateTime.now().millisecondsSinceEpoch
+          'passes_json': passesJson,
+          'timestamp': DateTime.now().millisecondsSinceEpoch,
         },
       );
       debugPrint("Successfully synced passes to watch!");
@@ -244,6 +248,12 @@ class _PassesScreenState extends State<PassesScreen> {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  @override
+  void dispose() {
+    ScreenBrightness().resetApplicationScreenBrightness();
+    super.dispose();
   }
 
   @override

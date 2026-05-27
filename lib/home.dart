@@ -4,7 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'login.dart';
 import 'passes.dart';
 import 'package:http/http.dart' as http;
-import 'map.dart';
+import 'maps/map.dart';
 import 'randomtext.dart';
 import 'testpage.dart';
 import 'park_status.dart';
@@ -271,4 +271,3 @@ class _RealHomeState extends State<RealHome> {
     );
   }
 }
-

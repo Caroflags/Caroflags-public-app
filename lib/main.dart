@@ -19,7 +19,9 @@ void main() async {
   if (!isWearOS && Platform.isAndroid) {
     try {
       final androidInfo = await DeviceInfoPlugin().androidInfo;
-      isWearOS = androidInfo.systemFeatures.contains('android.hardware.type.watch');
+      isWearOS = androidInfo.systemFeatures.contains(
+        'android.hardware.type.watch',
+      );
     } catch (e) {
       debugPrint("Failed to get device info: $e");
     }
@@ -30,6 +32,7 @@ void main() async {
     await Hive.initFlutter();
     await Hive.openBox('local_passes');
     await Hive.openBox('timer_settings');
+    await Hive.openBox('settings');
   }
 
   // 3. Initialize Firebase only for phone/tablet build
@@ -53,7 +56,9 @@ void main() async {
   // 5. Check Firebase Auth only for phone/tablet build
   if (!isWearOS) {
     final user = FirebaseAuth.instance.currentUser;
-    debugPrint(user != null ? 'Current user: ${user.uid}' : 'No user logged in');
+    debugPrint(
+      user != null ? 'Current user: ${user.uid}' : 'No user logged in',
+    );
   }
 
   runApp(isWearOS ? const WearApp() : const MyApp());

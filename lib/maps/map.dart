@@ -10,104 +10,13 @@ import 'package:vector_tile_renderer/vector_tile_renderer.dart'
 import 'dart:async';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'gzipped_tile_provider.dart';
+import '../gzipped_tile_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:timeago/timeago.dart' as timeago;
-
-// Data Lists
-final List<Map<String, dynamic>> restrooms = [
-  {'name': 'Restroom', 'lat': 35.1043619, 'lng': -80.9476792},
-  {'name': 'Restroom', 'lat': 35.1035138, 'lng': -80.9391063},
-  {'name': 'Restroom', 'lat': 35.1037229, 'lng': -80.9425526},
-  {'name': 'Restroom', 'lat': 35.1026034, 'lng': -80.9378982},
-  {'name': 'Restroom', 'lat': 35.1008116, 'lng': -80.9404345},
-  {'name': 'Restroom', 'lat': 35.1017612, 'lng': -80.9450256},
-  {'name': 'Restroom', 'lat': 35.1015101, 'lng': -80.9463152},
-  {'name': 'Restroom', 'lat': 35.1044832, 'lng': -80.9399069},
-  {'name': 'Restroom', 'lat': 35.1049591, 'lng': -80.942481},
-  {'name': 'Restroom', 'lat': 35.102809, 'lng': -80.9439685},
-  {'name': 'Restroom', 'lat': 35.1039144, 'lng': -80.9412182},
-  {'name': 'Restroom', 'lat': 35.10278, 'lng': -80.9497437},
-  {'name': 'Restroom', 'lat': 35.1006383, 'lng': -80.9432892},
-  {'name': 'Restroom', 'lat': 35.1021462, 'lng': -80.9396464},
-  {'name': 'Restroom', 'lat': 35.0998439, 'lng': -80.9447948},
-  {'name': 'Restroom', 'lat': 35.1012155, 'lng': -80.9442865},
-  {'name': 'Restroom', 'lat': 35.1009958, 'lng': -80.9412084},
-];
-
-final List<Map<String, dynamic>> restaurants = [
-  {'name': "Papa Luigi's", 'lat': 35.1045189, 'lng': -80.9418155},
-  {'name': 'Fair Fries', 'lat': 35.1031156, 'lng': -80.9434888},
-  {'name': 'Blue Ridge Fixins', 'lat': 35.1017171, 'lng': -80.9419654},
-  {'name': 'Fry Shack', 'lat': 35.1011767, 'lng': -80.9418011},
-  {
-    'name': "Leonardo's Hometown Italian Food",
-    'lat': 35.1012808,
-    'lng': -80.9411816,
-  },
-  {'name': 'Beach Bites', 'lat': 35.1014872, 'lng': -80.9457156},
-  {
-    'name': "Chickie's & Pete's Sports Grill",
-    'lat': 35.1034636,
-    'lng': -80.9433007,
-  },
-  {'name': 'Cinnabon', 'lat': 35.1040035, 'lng': -80.9400207},
-  {'name': 'Harmony Hall Marketplace', 'lat': 35.1025851, 'lng': -80.9395776},
-  {'name': "Auntie Anne's", 'lat': 35.1037222, 'lng': -80.9403829},
-  {'name': 'Burrito Café', 'lat': 35.1038817, 'lng': -80.9407841},
-  {'name': 'Panda Express', 'lat': 35.1018637, 'lng': -80.9403047},
-  {'name': 'Camp Cookout', 'lat': 35.1015212, 'lng': -80.9401607},
-  {'name': 'Juke Box Diner', 'lat': 35.10522, 'lng': -80.9430431},
-  {'name': 'Harbour House', 'lat': 35.1004664, 'lng': -80.9464406},
-  {'name': "Sharky's Grille", 'lat': 35.1014476, 'lng': -80.9442738},
-  {
-    'name': 'South Gate Drinks and Snack',
-    'lat': 35.1016757,
-    'lng': -80.9415221,
-  },
-  {'name': 'Blue Ridge Country Kitchen', 'lat': 35.1022744, 'lng': -80.9425301},
-];
-
-final List<Map<String, dynamic>> shops = [
-  {'name': 'FunPix Photo Memories', 'lat': 35.1041313, 'lng': -80.9402249},
-  {'name': 'The Hive at 325', 'lat': 35.1054081, 'lng': -80.9425336},
-  {'name': 'Action Theater Gifts', 'lat': 35.1001795, 'lng': -80.9422902},
-  {'name': 'North Gate Rentals', 'lat': 35.1041787, 'lng': -80.9394619},
-  {'name': 'Minute Maid Smoothie', 'lat': 35.1041549, 'lng': -80.9415415},
-  {'name': 'Pier 73', 'lat': 35.1036761, 'lng': -80.9428332},
-  {'name': 'Carolina Candy Shoppe', 'lat': 35.1016846, 'lng': -80.9411601},
-  {'name': 'Old Time Photo', 'lat': 35.1015776, 'lng': -80.9409079},
-  {'name': 'Premiers', 'lat': 35.1037275, 'lng': -80.9401149},
-  {'name': 'Camp Store', 'lat': 35.1019997, 'lng': -80.9400133},
-  {'name': 'Coca-Cola Marketplace', 'lat': 35.1048043, 'lng': -80.9431947},
-  {'name': 'Tradewinds', 'lat': 35.1001248, 'lng': -80.9444539},
-  {'name': 'Victory Lane', 'lat': 35.1031193, 'lng': -80.9400822},
-  {'name': 'Shop', 'lat': 35.1043743, 'lng': -80.9389627},
-  {'name': 'Thrills', 'lat': 35.1048694, 'lng': -80.9426848},
-  {'name': 'Stateline Designs', 'lat': 35.1043006, 'lng': -80.9408976},
-  {'name': 'South Gate Rentals', 'lat': 35.099455, 'lng': -80.9407799},
-  {'name': 'Trading Post', 'lat': 35.1042644, 'lng': -80.9478303},
-  {'name': 'Gateway Gifts', 'lat': 35.1043035, 'lng': -80.9399351},
-  {'name': 'Coca-Cola Refresh Station', 'lat': 35.1022476, 'lng': -80.9432162},
-  {'name': 'Coca-Cola Refresh Station', 'lat': 35.1041431, 'lng': -80.9397872},
-  {'name': 'The Rusted Rooster', 'lat': 35.1018142, 'lng': -80.9413027},
-  {'name': 'Afterburn Photo', 'lat': 35.1005162, 'lng': -80.941006},
-  {'name': 'Dino Store', 'lat': 35.1009957, 'lng': -80.9403363},
-  {'name': 'Wilderness Run Ride Photo', 'lat': 35.1008686, 'lng': -80.9389173},
-  {'name': 'Traditions', 'lat': 35.104144, 'lng': -80.9394854},
-  {'name': 'Beachcombers', 'lat': 35.1011795, 'lng': -80.9440467},
-  {'name': 'Seaside Supplies', 'lat': 35.101586, 'lng': -80.9435555},
-  {'name': 'Coca-Cola Refresh Station', 'lat': 35.1014459, 'lng': -80.939823},
-  {'name': 'Caricature Stand', 'lat': 35.1017773, 'lng': -80.9419051},
-  {'name': 'Ricochet Ride Photo', 'lat': 35.1042231, 'lng': -80.9427827},
-  {
-    'name': 'Woodstock Express Ride Photo',
-    'lat': 35.1014651,
-    'lng': -80.9392483,
-  },
-  {'name': 'Copperhead Strike Photo', 'lat': 35.1015731, 'lng': -80.9426453},
-];
+import '../locations/restrooms.dart';
+import '../locations/resturants.dart';
+import '../locations/shops.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -200,16 +109,19 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
 
   Future<void> _loadRides() async {
     final prefs = await SharedPreferences.getInstance();
-    
+
     final cachedRidesStr = prefs.getString('cached_rides');
     final cacheDateStr = prefs.getString('cached_rides_date');
-    
+
     if (cachedRidesStr != null && cacheDateStr != null) {
       final cacheDate = DateTime.tryParse(cacheDateStr);
-      if (cacheDate != null && DateTime.now().difference(cacheDate).inDays < 30) {
+      if (cacheDate != null &&
+          DateTime.now().difference(cacheDate).inDays < 30) {
         try {
           final List<dynamic> decodedCache = json.decode(cachedRidesStr);
-          final List<Map<String, dynamic>> cachedRides = decodedCache.map((e) => Map<String, dynamic>.from(e)).toList();
+          final List<Map<String, dynamic>> cachedRides = decodedCache
+              .map((e) => Map<String, dynamic>.from(e))
+              .toList();
           if (mounted) {
             setState(() {
               rides = cachedRides;
@@ -222,12 +134,16 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
         }
       }
     }
-    
+
     try {
-      final response = await http.get(Uri.parse('https://api.caroflags.xyz/allrides'));
+      final response = await http.get(
+        Uri.parse('https://api.caroflags.xyz/allrides'),
+      );
       if (response.statusCode == 200) {
         final List<dynamic> jsonResponse = json.decode(response.body);
-        final List<Map<String, dynamic>> fetchedRides = jsonResponse.map((ride) {
+        final List<Map<String, dynamic>> fetchedRides = jsonResponse.map((
+          ride,
+        ) {
           final coords = ride['coordinates'] as Map<String, dynamic>? ?? {};
           return {
             'name': ride['name'] ?? 'Unknown Ride',
@@ -235,15 +151,18 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
             'lng': coords['lng'] ?? 0.0,
           };
         }).toList();
-        
+
         if (mounted) {
           setState(() {
             rides = fetchedRides;
           });
         }
-        
+
         await prefs.setString('cached_rides', json.encode(fetchedRides));
-        await prefs.setString('cached_rides_date', DateTime.now().toIso8601String());
+        await prefs.setString(
+          'cached_rides_date',
+          DateTime.now().toIso8601String(),
+        );
       }
     } catch (e) {
       // ignore: avoid_print

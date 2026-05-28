@@ -35,13 +35,19 @@ class _PassesScreenState extends State<PassesScreen> {
 
   @override
   void initState() {
+    final settingsbox = Hive.box('settings');
     super.initState();
     _loadPrefs();
     _initWearConnectivity();
-    try {
-      ScreenBrightness().setApplicationScreenBrightness(1.00);
-    } catch (e) {
-      debugPrint("Lol didnt work: $e");
+
+    bool _brightsetting = settingsbox.get("change_screen_brightness");
+
+    if (_brightsetting) {
+      try {
+        ScreenBrightness().setApplicationScreenBrightness(1.00);
+      } catch (e) {
+        debugPrint("Lol didnt work: $e");
+      }
     }
   }
 

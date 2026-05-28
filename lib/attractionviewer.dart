@@ -20,8 +20,25 @@ class AttractionViewer extends StatelessWidget {
           SliverAppBar.large(
             title: Text(response['name'] ?? 'Unknown Ride'),
             centerTitle: true,
-            // standard M3 app bar usually handles colors automatically based on theme
+            // standard M3 app bar usually handles colors automatically based on the
           ),
+
+          if (response['filename'] != null &&
+              response['filename'].toString().isNotEmpty)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: ClipRRect(
+                  borderRadius: const BorderRadius.all(Radius.circular(12)),
+                  child: Image.network(
+                    "https://api.caroflags.xyz/images/" +
+                        (response['filename'] ??
+                            'https://api.caroflags.xyz/images/nophoto.png'),
+                  ),
+                ),
+              ),
+            ),
+
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),

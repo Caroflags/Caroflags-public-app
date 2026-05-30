@@ -40,7 +40,7 @@ class _PassesScreenState extends State<PassesScreen> {
     _loadPrefs();
     _initWearConnectivity();
 
-    bool _brightsetting = settingsbox.get("change_screen_brightness");
+    bool _brightsetting = settingsbox.get("change_screen_brightness") ?? false;
 
     if (_brightsetting) {
       try {

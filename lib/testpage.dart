@@ -4,6 +4,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:convert';
+import 'api_config.dart';
 // this comment is so that github will actually commit
 
 class TestPage extends StatefulWidget {
@@ -77,7 +78,7 @@ class _TestPageState extends State<TestPage> {
             onPressed: () async {
               String? idToken = await FirebaseAuth.instance.currentUser
                   ?.getIdToken();
-              var url = Uri.parse('https://api.caroflags.xyz/reviews');
+              var url = Uri.parse('${ApiConfig.baseUrl}/reviews');
               var response = await http.get(
                 url,
                 headers: {'Authorization': 'Bearer $idToken'},

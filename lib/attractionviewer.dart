@@ -3,6 +3,7 @@
 // if you need to modify the rides, go to attractionviewer.dart
 
 import 'package:flutter/material.dart';
+import 'api_config.dart';
 
 class AttractionViewer extends StatelessWidget {
   const AttractionViewer({super.key, required this.response});
@@ -31,13 +32,29 @@ class AttractionViewer extends StatelessWidget {
                 child: ClipRRect(
                   borderRadius: const BorderRadius.all(Radius.circular(12)),
                   child: Image.network(
-                    "https://api.caroflags.xyz/images/" +
+                    "${ApiConfig.baseUrl}/images/" +
                         (response['filename'] ??
-                            'https://api.caroflags.xyz/images/nophoto.png'),
+                            '${ApiConfig.baseUrl}/images/nophoto.png'),
                   ),
                 ),
               ),
             ),
+          if (response['credit'] != null &&
+              response['credit'].toString().isNotEmpty) ...[
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: Text(
+                  "Credit: " + (response['credit'] ?? 'Error'),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            ),
+          ],
+
+          SliverPadding(padding: const EdgeInsets.symmetric(horizontal: 16.0)),
 
           SliverToBoxAdapter(
             child: Padding(

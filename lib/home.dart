@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'login.dart';
@@ -10,6 +11,8 @@ import 'testpage.dart';
 import 'park_status.dart';
 import 'settings.dart';
 import 'timers.dart';
+import 'api_config.dart';
+import 'debug_settings.dart';
 
 Future<Map<String, String?>> getUserData() async {
   User? user = FirebaseAuth.instance.currentUser;
@@ -42,7 +45,7 @@ class _RealHomeState extends State<RealHome> {
   @override
   void initState() {
     super.initState();
-    _apiHealthFuture = http.get(Uri.parse('https://api.caroflags.xyz/health'));
+    _apiHealthFuture = http.get(Uri.parse('${ApiConfig.baseUrl}/health'));
   }
 
   int _selectedIndex = 0;
@@ -91,6 +94,15 @@ class _RealHomeState extends State<RealHome> {
       appBar: AppBar(
         title: const Text('Home'),
         actions: [
+          if (kDebugMode)
+            IconButton(
+              icon: const Icon(Icons.bug_report),
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const DebugSettingsPage()),
+                );
+              },
+            ),
           IconButton(
             icon: const Icon(Icons.settings),
             onPressed: () {

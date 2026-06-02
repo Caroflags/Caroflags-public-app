@@ -112,7 +112,7 @@ class AttractionViewer extends StatelessWidget {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    "My very unbiased opinion",
+                    "Random fact about this ride",
                     style: theme.textTheme.titleMedium?.copyWith(
                       color: colorScheme.onSecondaryContainer,
                       fontWeight: FontWeight.bold,

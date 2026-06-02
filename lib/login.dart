@@ -283,7 +283,7 @@ class _LoginPageState extends State<LoginPage> {
                   onPressed: () {
                     showDialog(
                       context: context,
-                      builder: (BuildContext context) {
+                      builder: (BuildContext dialogContext) {
                         return AlertDialog(
                           title: const Text('Just so you know...'),
                           content: const Text(
@@ -291,9 +291,10 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                           actions: [
                             TextButton(
-                              onPressed: () {
-                                Navigator.of(context).pop();
-                                FirebaseAuth.instance.signInAnonymously();
+                              onPressed: () async {
+                                Navigator.of(dialogContext).pop();
+                                await FirebaseAuth.instance.signInAnonymously();
+                                if (!context.mounted) return;
                                 Navigator.pushReplacement(
                                   context,
                                   MaterialPageRoute(

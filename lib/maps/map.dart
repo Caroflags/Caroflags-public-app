@@ -7,6 +7,8 @@ import 'package:vector_map_tiles/vector_map_tiles.dart';
 import 'package:vector_tile_renderer/vector_tile_renderer.dart'
     hide TileLayer, Theme;
 
+import 'dart:math' as math;
+import 'dart:ui' as ui;
 import 'dart:async';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -30,9 +32,12 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   String? _styleError;
 
   LatLng? userLocation;
+  final ValueNotifier<Position?> _animatedUserPositionNotifier = ValueNotifier<Position?>(null);
   AnimationController? _locationAnimController;
   Animation<double>? _latAnimation;
   Animation<double>? _lngAnimation;
+  Animation<double>? _headingAnimation;
+  Animation<double>? _accuracyAnimation;
   final MapController mapController = MapController();
 
   // Filter settings
@@ -221,54 +226,104 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
           ),
         ).listen((Position position) {
           if (mounted) {
-            _animateToNewLocation(
-              LatLng(position.latitude, position.longitude),
-            );
+            _animateToNewLocation(position);
           }
         });
   }
 
-  void _animateToNewLocation(LatLng newLocation) {
-    if (userLocation == null) {
-      setState(() {
-        userLocation = newLocation;
-      });
+  void _animateToNewLocation(Position newPosition) {
+    final currentPos = _animatedUserPositionNotifier.value;
+    if (currentPos == null) {
+      userLocation = LatLng(newPosition.latitude, newPosition.longitude);
+      _animatedUserPositionNotifier.value = newPosition;
       return;
     }
 
+    _locationAnimController?.stop();
     _locationAnimController?.dispose();
+
+    // 800ms transition duration for elegant and calm animation flow
     _locationAnimController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1000),
+      duration: const Duration(milliseconds: 800),
     );
 
     _latAnimation =
         Tween<double>(
-          begin: userLocation!.latitude,
-          end: newLocation.latitude,
+          begin: currentPos.latitude,
+          end: newPosition.latitude,
         ).animate(
           CurvedAnimation(
             parent: _locationAnimController!,
-            curve: Curves.linear,
+            curve: Curves.easeOutCubic,
           ),
         );
 
     _lngAnimation =
         Tween<double>(
-          begin: userLocation!.longitude,
-          end: newLocation.longitude,
+          begin: currentPos.longitude,
+          end: newPosition.longitude,
         ).animate(
           CurvedAnimation(
             parent: _locationAnimController!,
-            curve: Curves.linear,
+            curve: Curves.easeOutCubic,
+          ),
+        );
+
+    // Shortest path interpolation for device heading transitions
+    double startHeading = currentPos.heading;
+    double endHeading = newPosition.heading;
+    double diff = endHeading - startHeading;
+    if (diff > 180.0) {
+      startHeading += 360.0;
+    } else if (diff < -180.0) {
+      startHeading -= 360.0;
+    }
+
+    _headingAnimation =
+        Tween<double>(
+          begin: startHeading,
+          end: endHeading,
+        ).animate(
+          CurvedAnimation(
+            parent: _locationAnimController!,
+            curve: Curves.easeOutCubic,
+          ),
+        );
+
+    _accuracyAnimation =
+        Tween<double>(
+          begin: currentPos.accuracy,
+          end: newPosition.accuracy,
+        ).animate(
+          CurvedAnimation(
+            parent: _locationAnimController!,
+            curve: Curves.easeOutCubic,
           ),
         );
 
     _locationAnimController!.addListener(() {
       if (mounted) {
-        setState(() {
-          userLocation = LatLng(_latAnimation!.value, _lngAnimation!.value);
-        });
+        final double lat = _latAnimation!.value;
+        final double lng = _lngAnimation!.value;
+        final double heading = _headingAnimation!.value % 360.0;
+        final double accuracy = _accuracyAnimation!.value;
+
+        // Keep field up-to-date for other state dependencies (e.g. saving parking)
+        userLocation = LatLng(lat, lng);
+
+        _animatedUserPositionNotifier.value = Position(
+          latitude: lat,
+          longitude: lng,
+          timestamp: DateTime.now(),
+          altitude: newPosition.altitude,
+          altitudeAccuracy: newPosition.altitudeAccuracy,
+          heading: heading,
+          headingAccuracy: newPosition.headingAccuracy,
+          speed: newPosition.speed,
+          speedAccuracy: newPosition.speedAccuracy,
+          accuracy: accuracy,
+        );
       }
     });
 
@@ -339,6 +394,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
   void dispose() {
     _positionStreamSubscription?.cancel();
     _locationAnimController?.dispose();
+    _animatedUserPositionNotifier.dispose();
     super.dispose();
   }
 
@@ -549,26 +605,7 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                     ],
                   ),
                 ),
-              if (userLocation != null)
-                Marker(
-                  point: userLocation!,
-                  width: 40,
-                  height: 40,
-                  child: Center(
-                    child: Container(
-                      width: 18,
-                      height: 18,
-                      decoration: BoxDecoration(
-                        color: Colors.blue,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 3),
-                        boxShadow: const [
-                          BoxShadow(color: Colors.black26, blurRadius: 2),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
+
               if (_showRides)
                 ...rides.asMap().entries.map((entry) {
                   var ride = entry.value;
@@ -828,6 +865,25 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
                 }),
             ],
           ),
+          ValueListenableBuilder<Position?>(
+            valueListenable: _animatedUserPositionNotifier,
+            builder: (context, position, child) {
+              if (position == null) return const SizedBox.shrink();
+              return MarkerLayer(
+                markers: [
+                  Marker(
+                    point: LatLng(position.latitude, position.longitude),
+                    width: 80,
+                    height: 80,
+                    child: UserLocationDot(
+                      heading: position.heading,
+                      accuracy: position.accuracy,
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
         ],
       ),
       floatingActionButton: Column(
@@ -910,6 +966,193 @@ class _MapScreenState extends State<MapScreen> with TickerProviderStateMixin {
           ),
         ],
       ),
+    );
+  }
+}
+
+class HeadingConePainter extends CustomPainter {
+  final Color color;
+
+  HeadingConePainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final double cx = size.width / 2;
+    final double cy = size.height / 2;
+    // The wedge will extend outwards from the center of the marker
+    final double radius = size.width * 1.5;
+
+    final Paint paint = Paint()
+      ..shader = RadialGradient(
+        center: Alignment.topCenter,
+        colors: [
+          color.withAlpha(89), // 0.35 opacity
+          color.withAlpha(0),
+        ],
+      ).createShader(Rect.fromCircle(center: Offset(cx, cy), radius: radius))
+      ..style = PaintingStyle.fill;
+
+    final ui.Path path = ui.Path();
+    path.moveTo(cx, cy);
+    // Draw an arc centered at (cx, cy)
+    // Angles in radians:
+    // In Flutter, 0 is right (East), pi/2 is down (South), pi is left (West), -pi/2 is up (North).
+    // The device heading starts at 0 (North) and increases clockwise.
+    // If the widget is rotated by Transform.rotate(heading_in_radians), we can draw the cone pointing straight UP.
+    // Up on the map is -90 degrees (-pi/2 radians).
+    // A 50-degree wedge means we span from -115 degrees to -65 degrees.
+    path.arcTo(
+      Rect.fromCircle(center: Offset(cx, cy), radius: radius),
+      -115 * math.pi / 180,
+      50 * math.pi / 180,
+      false,
+    );
+    path.lineTo(cx, cy);
+    path.close();
+
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant HeadingConePainter oldDelegate) =>
+      oldDelegate.color != color;
+}
+
+class UserLocationDot extends StatefulWidget {
+  final double heading;
+  final double accuracy;
+
+  const UserLocationDot({
+    super.key,
+    required this.heading,
+    required this.accuracy,
+  });
+
+  @override
+  State<UserLocationDot> createState() => _UserLocationDotState();
+}
+
+class _UserLocationDotState extends State<UserLocationDot>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _pulseController;
+  late Animation<double> _pulseScale;
+  late Animation<double> _pulseOpacity;
+
+  @override
+  void initState() {
+    super.initState();
+    // Calm, breathing pulse of 2000ms as per user preference
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2000),
+    );
+
+    _pulseScale = Tween<double>(begin: 1.0, end: 2.2).animate(
+      CurvedAnimation(
+        parent: _pulseController,
+        curve: Curves.easeOut,
+      ),
+    );
+
+    _pulseOpacity = Tween<double>(begin: 0.45, end: 0.0).animate(
+      CurvedAnimation(
+        parent: _pulseController,
+        curve: Curves.easeOut,
+      ),
+    );
+
+    _pulseController.repeat();
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    // Use Material 3 primary and onPrimary colors
+    final primaryColor = theme.colorScheme.primary;
+    final onPrimaryColor = theme.colorScheme.onPrimary;
+
+    return Stack(
+      alignment: Alignment.center,
+      clipBehavior: Clip.none,
+      children: [
+        // 1. Heading cone if available (with animated opacity for smooth fade in/out)
+        AnimatedOpacity(
+          opacity: (widget.heading > 0) ? 1.0 : 0.0,
+          duration: const Duration(milliseconds: 500),
+          curve: Curves.easeInOut,
+          child: Transform.rotate(
+            angle: widget.heading * math.pi / 180,
+            child: SizedBox(
+              width: 80,
+              height: 80,
+              child: CustomPaint(
+                painter: HeadingConePainter(color: primaryColor),
+              ),
+            ),
+          ),
+        ),
+
+        // 2. Pulsing ring
+        AnimatedBuilder(
+          animation: _pulseController,
+          builder: (context, child) {
+            return Transform.scale(
+              scale: _pulseScale.value,
+              child: Opacity(
+                opacity: _pulseOpacity.value,
+                child: Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    color: primaryColor.withAlpha(102), // 0.4 opacity
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+
+        // 3. Main white glow ring
+        Container(
+          width: 22,
+          height: 22,
+          decoration: BoxDecoration(
+            color: onPrimaryColor,
+            shape: BoxShape.circle,
+            boxShadow: const [
+              BoxShadow(
+                color: Colors.black38,
+                blurRadius: 5,
+                spreadRadius: 1,
+                offset: Offset(0, 1),
+              ),
+            ],
+          ),
+          child: Center(
+            // 4. Solid core M3 primary color dot with gradient
+            child: Container(
+              width: 14,
+              height: 14,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    primaryColor.withAlpha(217), // 0.85 opacity
+                    primaryColor,
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

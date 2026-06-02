@@ -57,9 +57,7 @@ class _RealHomeState extends State<RealHome> {
       'title': 'Wallet',
       'subtitle': 'This is where all of your passes go',
       'icon': Icons.wallet,
-      'page': PassesScreen(
-        userId: FirebaseAuth.instance.currentUser?.uid ?? '',
-      ),
+      'page': PassesScreen(),
     },
     {
       'title': 'Map',
